@@ -1,0 +1,53 @@
+name: .NET Core
+
+on: [push]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        dotnet: [ '2.1.609', '3.1.102' ]
+        os: [ubuntu-latest, windows-latest]
+  
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Build with ${{ matrix.dotnet }} on ${{ matrix.os }}
+        run: dotnet build -c Release source/Handlebars.sln
+  
+  test-linux:
+    name: Test - Linux
+    needs: [build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet: [ '2.1.609', '3.1.102' ]
+        framework: [netcoreapp1.1, netcoreapp2.0]
+    steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
+        run: dotnet test -c Release source/Handlebars.sln -f ${{ matrix.framework }}
+
+  test-windows:
+    runs-on: windows-latest
+    needs: [build]
+    strategy:
+      matrix:
+        dotnet: [ '2.1.609', '3.1.102' ]
+        framework: [net461, netcoreapp1.1, netcoreapp2.0]
+
+    steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
+        run: dotnet test -c Release source/Handlebars.sln -f ${{ matrix.framework }}
