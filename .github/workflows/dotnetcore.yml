@@ -46,8 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dotnet: [ '3.1.102' ]
-        framework: [netcoreapp1.1, netcoreapp2.0]
+        dotnet: ['2.1.804', '3.1.102' ]
+        framework: [netcoreapp2.1, netcoreapp3.1]
     steps:
       - uses: actions/checkout@master
       - name: Setup dotnet
@@ -63,8 +63,8 @@ jobs:
     needs: [build-windows]
     strategy:
       matrix:
-        dotnet: [ '3.1.102' ]
-        framework: [net461, netcoreapp1.1, netcoreapp2.0]
+        dotnet: ['3.1.102' ]
+        framework: [net461]
 
     steps:
       - uses: actions/checkout@master
