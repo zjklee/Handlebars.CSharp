@@ -36,7 +36,7 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Build ${{ matrix.framework }} with ${{ matrix.dotnet }} on ${{ matrix.os }}
-        run: dotnet build -c Release -f source/Handlebars.sln
+        run: dotnet build -c Release -f ${{ matrix.framework }} source/Handlebars.sln
   
   test-linux:
     name: Test - Linux
