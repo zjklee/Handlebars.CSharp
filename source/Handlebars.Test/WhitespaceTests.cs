@@ -54,7 +54,8 @@ namespace HandlebarsDotNet.Test
     {{~/if~}}
   </a>
 {{~/each}}";
-            var template = Handlebars.Compile(source);
+            var handlebars = Handlebars.Create();
+            var template = handlebars.Compile(source);
             var data = new {
                 nav = new [] {
                     new {
@@ -77,7 +78,8 @@ namespace HandlebarsDotNet.Test
         public void StandaloneEach()
         {
             var source = "Links:\n {{#each nav}}\n  <a href=\"{{url}}\">\n    {{#if test}}\n    {{title}}\n    {{else}}\n    Empty\n    {{/if}}\n  </a>\n  {{/each}}";
-            var template = Handlebars.Compile(source);
+            var handlebars = Handlebars.Create();
+            var template = handlebars.Compile(source);
             var data = new
             {
                 nav = new[]
