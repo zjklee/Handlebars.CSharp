@@ -54,7 +54,7 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
-        working-directory: ./source/Handlebars.Text
+        working-directory: ./source/Handlebars.Test
         run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
 
   test-windows:
@@ -71,5 +71,5 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
-        working-directory: ./source/Handlebars.Text
+        working-directory: ./source/Handlebars.Test
         run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
