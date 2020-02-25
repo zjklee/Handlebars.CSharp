@@ -21,11 +21,6 @@ jobs:
       - name: Build ${{ matrix.framework }} with ${{ matrix.dotnet }} on ${{ matrix.os }}
         working-directory: ./source/Handlebars
         run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.csproj
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v1
-        with:
-          name: build-artifacts
-          path: ./
   
   build-windows:
     name: Build - Windows
@@ -44,11 +39,6 @@ jobs:
       - name: Build ${{ matrix.framework }} with ${{ matrix.dotnet }} on ${{ matrix.os }}
         working-directory: ./source/Handlebars
         run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.csproj
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v1
-        with:
-          name: build-artifacts
-          path: ./
   
   test-linux:
     name: Test - Linux
@@ -59,17 +49,14 @@ jobs:
         dotnet: [ '3.1.102' ]
         framework: [netcoreapp1.1, netcoreapp2.0]
     steps:
+      - uses: actions/checkout@master
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: ${{ matrix.dotnet }}
-      - name: Download build artifacts
-        uses: actions/download-artifact@v1
-        with:
-          name: build-artifacts
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
         working-directory: ./source/Handlebars.Test
-        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
+        run: dotnet test -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
 
   test-windows:
     runs-on: windows-latest
@@ -85,10 +72,6 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: ${{ matrix.dotnet }}
-      - name: Download build artifacts
-        uses: actions/download-artifact@v1
-        with:
-          name: build-artifacts
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
         working-directory: ./source/Handlebars.Test
-        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
+        run: dotnet test -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
