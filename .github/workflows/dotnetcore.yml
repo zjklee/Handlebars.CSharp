@@ -3,13 +3,14 @@ name: .NET Core
 on: [push]
 
 jobs:
-  build:
-    name: Build
+  build-linux:
+    name: Build - Linux
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         dotnet: [ '3.1.102' ]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
+        framework: [netstandard1.3, netstandard2.0]
   
     steps:
       - uses: actions/checkout@master
@@ -18,11 +19,28 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Build with ${{ matrix.dotnet }} on ${{ matrix.os }}
-        run: dotnet build -c Release source/Handlebars.sln
+        run: dotnet build -c Release -f ${{ matrix.framework }} source/Handlebars/Handlebars.csproj
+  
+  build-windows:
+    name: Build - Windows
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        dotnet: [ '3.1.102' ]
+        os: [windows-latest]
+  
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Build with ${{ matrix.dotnet }} on ${{ matrix.os }}
+        run: dotnet build -c Release -f source/Handlebars.sln
   
   test-linux:
     name: Test - Linux
-    needs: [build]
+    needs: [build-linux]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,10 +56,10 @@ jobs:
 
   test-windows:
     runs-on: windows-latest
-    needs: [build]
+    needs: [build-windows]
     strategy:
       matrix:
-        dotnet: [ '2.1.609', '3.1.102' ]
+        dotnet: [ '3.1.102' ]
         framework: [net461, netcoreapp1.1, netcoreapp2.0]
 
     steps:
