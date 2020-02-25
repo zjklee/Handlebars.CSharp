@@ -19,8 +19,8 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Build ${{ matrix.framework }} with ${{ matrix.dotnet }} on ${{ matrix.os }}
-        working-directory: ./source
-        run: dotnet build -c Release -f ${{ matrix.framework }}
+        working-directory: ./source/Handlebars
+        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.csproj
   
   build-windows:
     name: Build - Windows
@@ -37,8 +37,8 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Build ${{ matrix.framework }} with ${{ matrix.dotnet }} on ${{ matrix.os }}
-        working-directory: ./source
-        run: dotnet build -c Release -f ${{ matrix.framework }}
+        working-directory: ./source/Handlebars
+        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.csproj
   
   test-linux:
     name: Test - Linux
@@ -54,8 +54,8 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
-        working-directory: ./source
-        run: dotnet test -c Release -f ${{ matrix.framework }}
+        working-directory: ./source/Handlebars.Text
+        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
 
   test-windows:
     runs-on: windows-latest
@@ -71,5 +71,5 @@ jobs:
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Test with ${{ matrix.framework }} on ${{ matrix.dotnet }}
-        working-directory: ./source
-        run: dotnet test -c Release -f ${{ matrix.framework }}
+        working-directory: ./source/Handlebars.Text
+        run: dotnet build -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
