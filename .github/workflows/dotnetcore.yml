@@ -59,6 +59,7 @@ jobs:
         run: dotnet test -c Release -f ${{ matrix.framework }} ./Handlebars.Test.csproj
 
   test-windows:
+    name: Test - Windows
     runs-on: windows-latest
     needs: [build-windows]
     strategy:
