@@ -22,31 +22,39 @@ namespace HandlebarsDotNet.Collections
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
-            return !_inner.TryGetValue(key, out var value) 
-                ? Write(key, valueFactory(key)) 
-                : value;
-        }
-        
-        public TValue GetOrAdd<TState>(TKey key, Func<TKey, TState, TValue> valueFactory, TState state)
-        {
-            return !_inner.TryGetValue(key, out var value) 
-                ? Write(key, valueFactory(key, state)) 
-                : value;
+            return _inner.TryGetValue(key, out var value) 
+                ? value 
+                : Write(key, valueFactory(key));
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public TValue GetOrAdd<TState>(TKey key, Func<TKey, TState, TValue> valueFactory, TState state)
         {
-            return _inner.TryGetValue(key, out value);
+            return _inner.TryGetValue(key, out var value) 
+                ? value 
+                : Write(key, valueFactory(key, state));
         }
+        
+        public bool TryAdd(TKey key, TValue value)
+        {
+            if (_inner.TryGetValue(key, out _)) return false;
+
+            Write(key, value);
+            return true;
+        }
+
+        public bool TryGetValue(TKey key, out TValue value) => _inner.TryGetValue(key, out value);
+
+        public void Clear() => _inner.Clear();
 
         private TValue Write(TKey key, TValue value)
         {
-            var copy = new Dictionary<TKey, TValue>(_inner, _comparer)
+            var inner = _inner;
+            var copy = new Dictionary<TKey, TValue>(inner, _comparer)
             {
                 [key] = value
             };
-            
-            Interlocked.CompareExchange(ref _inner, copy, _inner);
+
+            Interlocked.CompareExchange(ref _inner, copy, inner);
 
             return value;
         }

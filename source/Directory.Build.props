@@ -1,7 +1,8 @@
 <Project>
     <PropertyGroup>
-        <SignAssembly>true</SignAssembly>
+        <SignAssembly>false</SignAssembly>
         <AssemblyOriginatorKeyFile>..\..\handlebars.csharp.snk</AssemblyOriginatorKeyFile>
+        <LangVersion>8</LangVersion>
     </PropertyGroup>
     
     <PropertyGroup>

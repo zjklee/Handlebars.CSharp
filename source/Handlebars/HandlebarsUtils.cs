@@ -2,6 +2,7 @@
 using HandlebarsDotNet.Compiler;
 using System.Collections;
 using System.Linq;
+using HandlebarsDotNet.Adapters;
 
 namespace HandlebarsDotNet
 {
@@ -32,6 +33,7 @@ namespace HandlebarsDotNet
                 case UndefinedBindingResult _:
                 case null:
                     return true;
+                case Ref @ref: return IsFalsy(@ref.GetValue());
                 case bool b:
                     return !b;
                 case string s:
@@ -86,4 +88,3 @@ namespace HandlebarsDotNet
         }
     }
 }
-

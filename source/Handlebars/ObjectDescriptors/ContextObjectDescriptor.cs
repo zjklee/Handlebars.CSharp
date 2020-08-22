@@ -13,14 +13,15 @@ namespace HandlebarsDotNet.ObjectDescriptors
 
         private static readonly ObjectDescriptor Descriptor =
             new ObjectDescriptor(BindingContextType, new ContextMemberAccessor(), PropertiesDelegate);
-
-        public bool CanHandleType(Type type)
-        {
-            return type == BindingContextType;
-        }
-
+        
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)
         {
+            if (type != BindingContextType)
+            {
+                value = ObjectDescriptor.Empty;;
+                return false;
+            }
+            
             value = Descriptor;
             return true;
         }

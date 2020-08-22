@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using System.Reflection;
@@ -9,27 +10,45 @@ namespace HandlebarsDotNet.ObjectDescriptors
 {
     internal class ObjectDescriptorProvider : IObjectDescriptorProvider
     {
+        private static readonly Type StringType = typeof(string);
+        private static readonly DynamicObjectDescriptor DynamicObjectDescriptor = new DynamicObjectDescriptor();
+        
         private readonly Type _dynamicMetaObjectProviderType = typeof(IDynamicMetaObjectProvider);
         private readonly LookupSlim<Type, DeferredValue<Type, string[]>> _membersCache = new LookupSlim<Type, DeferredValue<Type, string[]>>();
         private readonly ReflectionMemberAccessor _reflectionMemberAccessor;
 
-        public ObjectDescriptorProvider(InternalHandlebarsConfiguration configuration)
+        public ObjectDescriptorProvider(ICompiledHandlebarsConfiguration configuration)
         {
             _reflectionMemberAccessor = new ReflectionMemberAccessor(configuration);
         }
         
-        public bool CanHandleType(Type type)
-        {
-            return !_dynamicMetaObjectProviderType.IsAssignableFrom(type) && type != typeof(string);
-        }
-
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)
         {
-            value = new ObjectDescriptor(type, _reflectionMemberAccessor, (descriptor, o) =>
+            if (type == StringType)
             {
-                var cache = (LookupSlim<Type, DeferredValue<Type, string[]>>) descriptor.Dependencies[0];
-                return cache.GetOrAdd(descriptor.DescribedType, DescriptorValueFactory).Value;
-            }, dependencies: _membersCache);
+                value = ObjectDescriptor.Empty;
+                return false;
+            }
+
+            if (_dynamicMetaObjectProviderType.IsAssignableFrom(type))
+            {
+                if (DynamicObjectDescriptor.TryGetDescriptor(type, out var dynamicDescriptor))
+                {
+                    var mergedMemberAccessor = new MergedMemberAccessor(_reflectionMemberAccessor, dynamicDescriptor.MemberAccessor);
+                    value = new ObjectDescriptor(type, 
+                        mergedMemberAccessor, 
+                        (descriptor, o) => GetProperties(descriptor, o).Concat(dynamicDescriptor.GetProperties(descriptor, o)), 
+                        dependencies: _membersCache
+                    );
+
+                    return true;
+                }
+                
+                value = ObjectDescriptor.Empty;
+                return false;
+            }
+            
+            value = new ObjectDescriptor(type, _reflectionMemberAccessor, GetProperties, dependencies: _membersCache);
 
             return true;
         }
@@ -45,5 +64,11 @@ namespace HandlebarsDotNet.ObjectDescriptors
                     return properties.Cast<MemberInfo>().Concat(fields).Select(o => o.Name).ToArray();
                 });
             };
+
+        private static readonly Func<ObjectDescriptor, object, IEnumerable<object>> GetProperties = (descriptor, o) =>
+        {
+            var cache = (LookupSlim<Type, DeferredValue<Type, string[]>>) descriptor.Dependencies[0];
+            return cache.GetOrAdd(descriptor.DescribedType, DescriptorValueFactory).Value;
+        };
     }
 }

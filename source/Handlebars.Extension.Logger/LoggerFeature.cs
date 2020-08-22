@@ -1,7 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using HandlebarsDotNet.Adapters;
+using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet.Extension.Logging;
 using HandlebarsDotNet.Features;
+using HandlebarsDotNet.Helpers;
 
 namespace HandlebarsDotNet.Extension.Logger
 {
@@ -12,12 +14,10 @@ namespace HandlebarsDotNet.Extension.Logger
     /// <param name="level"></param>
     /// <param name="format"></param>
     public delegate void Log(object[] arguments, LoggingLevel level, Func<object[], string> format);
-    
+
     internal class LoggerFeature : IFeature
     {
         private readonly Log _logger;
-        
-        private readonly Func<object[], string> _defaultFormatter = objects => string.Join("; ", objects);
 
         public LoggerFeature(Log logger)
         {
@@ -26,54 +26,20 @@ namespace HandlebarsDotNet.Extension.Logger
         
         public void OnCompiling(ICompiledHandlebarsConfiguration configuration)
         {
-            if (configuration.ReturnHelpers.TryGetValue("log", out var logger))
+            var logPathInfo = configuration.PathInfoStore.GetOrAdd("log");
+            if (configuration.Helpers.TryGetValue(logPathInfo, out var logger))
             {
-                configuration.ReturnHelpers["log"] = (context, arguments) =>
-                {
-                    logger(context, arguments);
-                    return LogHelper(context, arguments);
-                };
+                var originalLogger = logger.Value as LoggerHelperDescriptor;
+                configuration.Helpers[logPathInfo].Value = new LoggerHelperDescriptor(_logger, originalLogger);
             }
             else
             {
-                configuration.ReturnHelpers["log"] = LogHelper;   
+                configuration.Helpers[logPathInfo] = new Ref<HelperDescriptorBase>(new LoggerHelperDescriptor(_logger));   
             }
         }
 
         public void CompilationCompleted()
         {
-        }
-
-        private string LogHelper(dynamic context, object[] arguments)
-        {
-            var logLevel = LoggingLevel.Info;
-            var formatter = _defaultFormatter;
-
-            var logArguments = arguments;
-            if (arguments.Last() is IDictionary<string, object> hash)
-            {
-                logArguments = arguments.Take(arguments.Length - 1).ToArray();
-                if(hash.TryGetValue("level", out var level))
-                {
-                    if(Enum.TryParse<LoggingLevel>(level.ToString(), true, out var hbLevel))
-                    {
-                        logLevel = hbLevel;
-                    }
-                }
-
-                if (hash.TryGetValue("format", out var format))
-                {
-                    var formatString = format.ToString()
-                        .Replace("[", "{")
-                        .Replace("]", "}");
-                    
-                    formatter = objects => string.Format(formatString, objects);
-                }
-            }
-
-            _logger(logArguments, logLevel, formatter);
-            
-            return string.Empty;
         }
     }
 }

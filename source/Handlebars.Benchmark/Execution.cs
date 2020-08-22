@@ -3,219 +3,205 @@ using System.Collections.Generic;
 using System.IO;
 using BenchmarkDotNet.Attributes;
 using HandlebarsDotNet;
-using HandlebarsDotNet.Extension.CompileFast;
-using Newtonsoft.Json.Linq;
+using HandlebarsDotNet.Adapters;
 
 namespace HandlebarsNet.Benchmark
 {
     public class Execution
     {
-        private object _data;
-        private Action<TextWriter, object> _template;
-
-        [Params(2, 5, 10)]
-        public int N { get; }
-
-        [Params("current", "current-cache", "current-fast", "current-fast-cache")]
-        public string Version { get; }
-
-        [Params("object", "dictionary", "json")]
-        public string DataType { get; }
+        private readonly List<Action<TextWriter, object>> _templates = new List<Action<TextWriter, object>>();
 
         [GlobalSetup]
         public void Setup()
         {
-            const string template = @"
-                childCount={{level1.Count}}
-                childCount2={{level1.Count}}
-                {{#each level1}}
-                    id={{id}}
-                    childCount={{level2.Count}}
-                    childCount2={{level2.Count}}
-                    index=[{{@../../index}}:{{@../index}}:{{@index}}]
-                    first=[{{@../../first}}:{{@../first}}:{{@first}}]
-                    last=[{{@../../last}}:{{@../last}}:{{@last}}]
-                    {{#each level2}}
-                        id={{id}}
-                        childCount={{level3.Count}}
-                        childCount2={{level3.Count}}
-                        index=[{{@../../index}}:{{@../index}}:{{@index}}]
-                        first=[{{@../../first}}:{{@../first}}:{{@first}}]
-                        last=[{{@../../last}}:{{@../last}}:{{@last}}]
-                        {{#each level3}}
-                            id={{id}}
-                            index=[{{@../../index}}:{{@../index}}:{{@index}}]
-                            first=[{{@../../first}}:{{@../first}}:{{@first}}]
-                            last=[{{@../../last}}:{{@../last}}:{{@last}}]
-                        {{/each}}
-                    {{/each}}    
-                {{/each}}";
-
-            switch (DataType)
-            {
-                case "object":
-                    _data = new { level1 = ObjectLevel1Generator()};
-                    break;
-                
-                case "dictionary":
-                    _data = new Dictionary<string, object>{["level1"] = DictionaryLevel1Generator()};
-                    break;
-                
-                case "json":
-                    _data = new JObject {["level1"] = JsonLevel1Generator()};
-                    break;
-            }
-
             var handlebars = Handlebars.Create();
-            handlebars.Configuration.CompileTimeConfiguration.UseAggressiveCaching = Version.Contains("cache");
-
-            if (Version.Contains("fast"))
-            {
-                handlebars.Configuration.UseCompileFast();
-            }
-
-            using (var reader = new StringReader(template))
-            {
-                _template = handlebars.Compile(reader);
-            }
-
-            List<object> ObjectLevel1Generator()
-            {
-                var level = new List<object>();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new
-                    {
-                        id = $"{i}",
-                        level2 = ObjectLevel2Generator(i)
-                    });
-                }
-
-                return level;
-            }
             
-            List<object> ObjectLevel2Generator(int id1)
+            handlebars.RegisterHelper("helper1", (output, context, arguments) =>
             {
-                var level = new List<object>();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new
-                    {
-                        id = $"{id1}-{i}",
-                        level3 = ObjectLevel3Generator(id1, i)
-                    });
-                }
-
-                return level;
-            }
+                output.WriteSafeString("42");
+            });
             
-            List<object> ObjectLevel3Generator(int id1, int id2)
+            handlebars.RegisterHelper("helper2", (output, context, arguments) =>
             {
-                var level = new List<object>();
-                for (int i = 0; i < N; i++)
+                for (int i = 0; i < arguments.Length; i++)
                 {
-                    level.Add(new
-                    {
-                        id = $"{id1}-{id2}-{i}"
-                    });
+                    output.WriteSafeString(arguments[i]);
                 }
+            });
 
-                return level;
-            }
-
-            List<Dictionary<string, object>> DictionaryLevel1Generator()
+            handlebars.RegisterHelper("helper5", (output, options, context, arguments) =>
             {
-                var level = new List<Dictionary<string, object>>();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new Dictionary<string, object>()
-                    {
-                        ["id"] = $"{i}",
-                        ["level2"] = DictionaryLevel2Generator(i)
-                    });
-                }
-
-                return level;
-            }
+                options.Template(output, context);
+                output.WriteSafeString("42");
+            });
             
-            List<Dictionary<string, object>> DictionaryLevel2Generator(int id1)
+            handlebars.RegisterHelper("helper6", (output, options, context, arguments) =>
             {
-                var level = new List<Dictionary<string, object>>();
-                for (int i = 0; i < N; i++)
+                options.Template(output, context);
+                for (int i = 0; i < arguments.Length; i++)
                 {
-                    level.Add(new Dictionary<string, object>()
-                    {
-                        ["id"] = $"{id1}-{i}",
-                        ["level3"] = DictionaryLevel3Generator(id1, i)
-                    });
+                    output.WriteSafeString(arguments[i]);
                 }
-
-                return level;
-            }
+            });
             
-            List<Dictionary<string, object>> DictionaryLevel3Generator(int id1, int id2)
+            handlebars.RegisterHelper("helper9", (output, options, context, arguments) =>
             {
-                var level = new List<Dictionary<string, object>>();
-                for (int i = 0; i < N; i++)
+                var index = new Ref<int>(0);
+                using var frame = options.CreateFrame();
+                frame.BlockParams[0] = index;
+                
+                for (int i = 0; i < arguments.Length; i++)
                 {
-                    level.Add(new Dictionary<string, object>()
-                    {
-                        ["id"] = $"{id1}-{id2}-{i}"
-                    });
+                    index.Value = i;
+                    options.Template(output, frame);
                 }
-
-                return level;
-            }
-
-            JArray JsonLevel1Generator()
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject
-                    {
-                        ["id"] = $"{i}",
-                        ["level2"] = JsonLevel2Generator(i)
-                    });
-                }
-
-                return level;
-            }
+            });
             
-            JArray JsonLevel2Generator(int id1)
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject
-                    {
-                        ["id"] = $"{id1}-{i}",
-                        ["level3"] = JsonLevel3Generator(id1, i)
-                    });
-                }
-
-                return level;
-            }
+            _templates.Add(handlebars.Compile(Read("Call {{helper1}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{helper2 '1'}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{helper2 '1' '2'}}")));
             
-            JArray JsonLevel3Generator(int id1, int id2)
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject()
-                    {
-                        ["id"] = $"{id1}-{id2}-{i}"
-                    });
-                }
+            _templates.Add(handlebars.Compile(Read("Call {{helper3}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{helper4 '1'}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{helper4 '1' '2'}}")));
+            
+            _templates.Add(handlebars.Compile(Read("Call {{#helper5}}empty{{/helper5}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{#helper6 '1'}}empty{{/helper6}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{#helper6 '1' '2'}}empty{{/helper6}}")));
+            
+            _templates.Add(handlebars.Compile(Read("Call {{#helper7}}empty{{/helper7}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{#helper8 '1'}}empty{{/helper8}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{#helper8 '1' '2'}}empty{{/helper8}}")));
+            
+            _templates.Add(handlebars.Compile(Read("Call {{#helper9 as |i|}}{{i}}{{/helper9}}")));
+            _templates.Add(handlebars.Compile(Read("Call {{#helper10 as |i|}}{{i}}{{/helper10}}")));
 
-                return level;
-            }
+            handlebars.RegisterHelper("helper3", (output, context, arguments) =>
+            {
+                output.WriteSafeString("42");
+            });
+            
+            handlebars.RegisterHelper("helper4", (output, context, arguments) =>
+            {
+                for (int i = 0; i < arguments.Length; i++)
+                {
+                    output.WriteSafeString(arguments[i]);
+                }
+            });
+            
+            handlebars.RegisterHelper("helper7", (output, options, context, arguments) =>
+            {
+                options.Template(output, context);
+                output.WriteSafeString("42");
+            });
+            
+            handlebars.RegisterHelper("helper8", (output, options, context, arguments) =>
+            {
+                options.Template(output, context);
+                for (int i = 0; i < arguments.Length; i++)
+                {
+                    output.WriteSafeString(arguments[i]);
+                }
+            });
+            
+            handlebars.RegisterHelper("helper10", (output, options, context, arguments) =>
+            {
+                var index = new Ref<int>(0);
+                using var frame = options.CreateFrame();
+                frame.BlockParams[0] = index;
+                
+                for (int i = 0; i < arguments.Length; i++)
+                {
+                    index.Value = i;
+                    options.Template(output, frame);
+                }
+            });
         }
         
         [Benchmark]
-        public void Render()
+        public void CallHelperWithoutParameters()
         {
-            _template(TextWriter.Null, _data);
+            _templates[0].Invoke(TextWriter.Null, null);
         }
+        
+        [Benchmark]
+        public void CallHelperWithOneParameter()
+        {
+            _templates[1].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void CallHelperWithTwoParameter()
+        {
+            _templates[2].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallHelperWithoutParameters()
+        {
+            _templates[3].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallHelperWithOneParameter()
+        {
+            _templates[4].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallHelperWithTwoParameter()
+        {
+            _templates[5].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void CallBlockHelperWithoutParameters()
+        {
+            _templates[6].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void CallBlockHelperWithOneParameter()
+        {
+            _templates[7].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void CallBlockHelperWithTwoParameter()
+        {
+            _templates[8].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallBlockHelperWithoutParameters()
+        {
+            _templates[9].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallBlockHelperWithOneParameter()
+        {
+            _templates[10].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallBlockHelperWithTwoParameter()
+        {
+            _templates[11].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void CallBlockHelperWithBlockParameters()
+        {
+            _templates[12].Invoke(TextWriter.Null, null);
+        }
+        
+        [Benchmark]
+        public void LateCallBlockHelperWithBlockParameters()
+        {
+            _templates[13].Invoke(TextWriter.Null, null);
+        }
+
+        private static TextReader Read(string template) => new StringReader(template);
     }
 }

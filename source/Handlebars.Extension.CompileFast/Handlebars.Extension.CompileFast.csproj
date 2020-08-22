@@ -7,7 +7,7 @@
         <LangVersion>7</LangVersion>
         <Version>1.0.0</Version>
         <ProjectGuid>68ACA1C9-CAA6-40A9-B7B4-B619663E5E04</ProjectGuid>
-        <SignAssembly>false</SignAssembly>
+        <SignAssembly>true</SignAssembly>
     </PropertyGroup>
     
     <PropertyGroup>
@@ -29,7 +29,7 @@
     </ItemGroup>
     
     <ItemGroup>
-        <PackageReference Include="FastExpressionCompiler" Version="1.10.1" />
+        <PackageReference Include="FastExpressionCompiler" Version="2.0.0" />
         <PackageReference Include="ExpressionShortcuts" Version="1.0.4.36" PrivateAssets="All" />
     </ItemGroup>
     

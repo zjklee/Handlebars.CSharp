@@ -1,18 +1,9 @@
-using System;
-using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet.Compiler;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    [Flags]
-    internal enum ValueTypes
+    internal interface IValueProvider
     {
-        Context = 1,
-        All = 2
-    }
-    
-    internal interface IValueProvider : IDisposable
-    {
-        ValueTypes SupportedValueTypes { get; }
-        bool TryGetValue(ref ChainSegment segment, out object value);
+        void Attach(BindingContext bindingContext);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.MemberAccessors
 {
@@ -15,6 +16,6 @@ namespace HandlebarsDotNet.MemberAccessors
         /// <param name="memberName"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        bool TryGetValue(object instance, Type instanceType, string memberName, out object value);
+        bool TryGetValue(object instance, Type instanceType, ChainSegment memberName, out object value);
     }
 }

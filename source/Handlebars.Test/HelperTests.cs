@@ -1,8 +1,13 @@
 using Xunit;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using HandlebarsDotNet.Adapters;
+using HandlebarsDotNet.Compiler.Structure.Path;
 using HandlebarsDotNet.Features;
+using HandlebarsDotNet.Helpers.BlockHelpers;
 
 namespace HandlebarsDotNet.Test
 {
@@ -71,22 +76,55 @@ namespace HandlebarsDotNet.Test
         [Fact]
         public void BlockHelperWithBlockParams()
         {
-            Handlebars.RegisterHelper("myHelper", (writer, options, context, args) => {
-                var count = 0;
-                options.BlockParams((parameters, binder, deps) =>
+            var handlebars = Handlebars.Create();
+            handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
+            {
+                var count = new Ref<int>(0);
+                using var frame = options.CreateFrame();
+                frame.BlockParams[0] = count;
+
+                foreach (var arg in args)
                 {
-                    binder(parameters.ElementAtOrDefault(0), ctx => ++count);
-                });
-                
-                foreach(var arg in args)
-                {
-                    options.Template(writer, arg);
+                    ++count.Value;
+                    frame.Value = arg;
+                    options.Template(writer, frame);
                 }
             });
 
             var source = "Here are some things: {{#myHelper 'foo' 'bar' as |counter|}}{{counter}}:{{this}}\n{{/myHelper}}";
 
-            var template = Handlebars.Compile(source);
+            var template = handlebars.Compile(source);
+
+            var output = template(new { });
+
+            var expected = "Here are some things: 1:foo\n2:bar\n";
+
+            Assert.Equal(expected, output);
+        }
+        
+        [Fact]
+        public void BlockHelperLateBindWithBlockParams()
+        {
+            var handlebars = Handlebars.Create();
+            
+            var source = "Here are some things: {{#myHelper 'foo' 'bar' as |counter|}}{{counter}}:{{this}}\n{{/myHelper}}";
+
+            var template = handlebars.Compile(source);
+            
+            handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
+            {
+                var count = new Ref<int>(0);
+                using var frame = options.CreateFrame();
+                frame.BlockParams[0] = count;
+
+                foreach (var arg in args)
+                {
+                    ++count.Value;
+                    frame.Value = arg;
+                    options.Template(writer, frame);
+                }
+
+            });
 
             var output = template(new { });
 
@@ -105,14 +143,17 @@ namespace HandlebarsDotNet.Test
 
             var template = Handlebars.Compile(source);
 
-            Handlebars.RegisterHelper("myHelper", (writer, options, context, args) => {
-                var count = 0;
-                options.BlockParams((parameters, binder, deps) => 
-                    binder(parameters.ElementAtOrDefault(0), ctx => ++count));
-                
-                foreach(var arg in args)
+            Handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
+            {
+                var count = new Ref<int>(0);
+                using var frame = options.CreateFrame();
+                frame.BlockParams[0] = count;
+
+                foreach (var arg in args)
                 {
-                    options.Template(writer, arg);
+                    count.Value++;
+                    frame.Value = arg;
+                    options.Template(writer, frame);
                 }
             });
             
@@ -256,11 +297,11 @@ namespace HandlebarsDotNet.Test
             var handlebars = Handlebars.Create();
             handlebars.Configuration
                 .RegisterMissingHelperHook(
-                    (context, arguments) => expected
+                    (context, arguments) => "Should be ignored"
                 );
 
             handlebars.RegisterHelper("helperMissing", 
-                (context, arguments) => "Should be ignored"
+                (context, arguments) => expected
             );
             
             var source = "{{missing}}";
@@ -309,7 +350,7 @@ namespace HandlebarsDotNet.Test
                 .RegisterMissingHelperHook(
                     blockHelperMissing: (writer, options, context, arguments) =>
                     {
-                        var name = options.GetValue<string>("name");
+                        var name = options.GetValue<string>("name").ToString();
                         writer.WriteSafeString(string.Format(format, name.Trim('[', ']')));
                     });
 
@@ -437,7 +478,7 @@ namespace HandlebarsDotNet.Test
             var template = Handlebars.Compile(source);
             var data = new
                 {
-                    key = new string[] { "element" }
+                    key = new[] { "element" }
                 };
             var output = template(data);
             var expected = "";
@@ -808,6 +849,46 @@ namespace HandlebarsDotNet.Test
 
             var output = template(data);
             Assert.Equal("True 1 abc", output);
+        }
+
+        [Fact]
+        public void BlockHelperWithCustomIndex()
+        {
+            var handlebars = Handlebars.Create();
+            
+            handlebars.RegisterHelper(new CustomEachBlockHelper());
+
+            var template = handlebars.Compile("{{#customEach this}}{{@value}}'s index is {{@index}} {{/customEach}}");
+
+            var result = template(new[] { "one", "two" });
+            
+            Assert.Equal("one's index is 0 two's index is 1 ", result);
+        }
+        
+        private class CustomEachBlockHelper : BlockHelperDescriptor
+        {
+            public CustomEachBlockHelper() : base("customEach")
+            {
+            }
+
+            public override void Invoke(TextWriter output, HelperOptions options, object context, params object[] arguments)
+            {
+                var index = new Ref<int>(0);
+                var value = new Ref<object>(null);
+
+                using var frame = options.CreateFrame();
+                frame.Data[ChainSegment.Index] = index;
+                frame.Data[ChainSegment.Value] = value;
+                
+                foreach (var item in (IEnumerable) arguments[0])
+                {
+                    value.Value = frame.Value = item;
+
+                    options.Template(output, frame);
+                    
+                    ++index.Value;
+                }
+            }
         }
     }
 }

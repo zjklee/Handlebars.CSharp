@@ -1,77 +1,42 @@
+using System;
+using HandlebarsDotNet.Adapters;
+using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
-using Microsoft.Extensions.ObjectPool;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    internal class IteratorValueProvider : IValueProvider
+    internal sealed class IteratorValueProvider : IValueProvider, IDisposable
     {
-        private static readonly IteratorValueProviderPool Pool = new IteratorValueProviderPool();
+        private static readonly InternalObjectPool<IteratorValueProvider> Pool = new InternalObjectPool<IteratorValueProvider>(new Policy());
 
-        public static IteratorValueProvider Create()
-        {
-            return Pool.Get();
-        }
+        public static IteratorValueProvider Create() => Pool.Get();
+
+        public Ref<int> Index { get; } = new Ref<int>(0);
+
+        public Ref<bool> First { get; } = new Ref<bool>(true);
+
+        public Ref<bool> Last { get; } = new Ref<bool>(false);
         
-        public object Value { get; set; }
-
-        public int Index { get; set; }
-
-        public bool First { get; set; }
-
-        public bool Last { get; set; }
-
-        public ValueTypes SupportedValueTypes { get; } = ValueTypes.Context;
-
-        public virtual bool TryGetValue(ref ChainSegment segment, out object value)
+        public void Attach(BindingContext bindingContext)
         {
-            switch (segment.LowerInvariant)
-            {
-                case "index":
-                    value = Index;
-                    return true;
-                case "first":
-                    value = First;
-                    return true;
-                case "last":
-                    value = Last;
-                    return true;
-                case "value":
-                    value = Value;
-                    return true;
-
-                default:
-                    value = null;
-                    return false;
-            }
+            bindingContext.ContextDataObject[ChainSegment.Index] = Index;
+            bindingContext.ContextDataObject[ChainSegment.First] = First;
+            bindingContext.ContextDataObject[ChainSegment.Last] = Last;
         }
-        
-        public virtual void Dispose()
-        {
-            Pool.Return(this);
-        }
-        
-        private class IteratorValueProviderPool : DefaultObjectPool<IteratorValueProvider>
-        {
-            public IteratorValueProviderPool() : base(new IteratorValueProviderPolicy())
-            {
-            }
-            
-            private class IteratorValueProviderPolicy : IPooledObjectPolicy<IteratorValueProvider>
-            {
-                IteratorValueProvider IPooledObjectPolicy<IteratorValueProvider>.Create()
-                {
-                    return new IteratorValueProvider();
-                }
 
-                bool IPooledObjectPolicy<IteratorValueProvider>.Return(IteratorValueProvider item)
-                {
-                    item.First = true;
-                    item.Last = false;
-                    item.Index = 0;
-                    item.Value = null;
+        public void Dispose() => Pool.Return(this);
 
-                    return true;
-                }
+        private class Policy : IInternalObjectPoolPolicy<IteratorValueProvider>
+        {
+            IteratorValueProvider IInternalObjectPoolPolicy<IteratorValueProvider>.Create() => new IteratorValueProvider();
+
+            bool IInternalObjectPoolPolicy<IteratorValueProvider>.Return(IteratorValueProvider item)
+            {
+                item.First.Value = true;
+                item.Last.Value = false;
+                item.Index.Value = 0;
+
+                return true;
             }
         }
     }

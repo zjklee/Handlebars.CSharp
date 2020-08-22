@@ -3,25 +3,27 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Collections;
-using HandlebarsDotNet.MemberAccessors;
+using HandlebarsDotNet.MemberAccessors.DictionaryAccessors;
 using HandlebarsDotNet.Polyfills;
 
 namespace HandlebarsDotNet.ObjectDescriptors
 {
     internal sealed class GenericDictionaryObjectDescriptorProvider : IObjectDescriptorProvider
     {
-        private static readonly MethodInfo CreateDescriptorMethodInfo = typeof(GenericDictionaryObjectDescriptorProvider)
-            .GetMethod(nameof(CreateDescriptor), BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly MethodInfo CreateClassDescriptorWithClassPropertiesMethodInfo = typeof(GenericDictionaryObjectDescriptorProvider)
+            .GetMethod(nameof(CreateClassDescriptorWithClassProperties), BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly MethodInfo CreateClassDescriptorWithStructPropertiesMethodInfo = typeof(GenericDictionaryObjectDescriptorProvider)
+            .GetMethod(nameof(CreateClassDescriptorWithStructProperties), BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly MethodInfo CreateStructDescriptorWithClassPropertiesMethodInfo = typeof(GenericDictionaryObjectDescriptorProvider)
+            .GetMethod(nameof(CreateStructDescriptorWithClassProperties), BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly MethodInfo CreateStructDescriptorWithStructPropertiesMethodInfo = typeof(GenericDictionaryObjectDescriptorProvider)
+            .GetMethod(nameof(CreateStructDescriptorWithStructProperties), BindingFlags.NonPublic | BindingFlags.Static);
+        
         
         private readonly LookupSlim<Type, DeferredValue<Type, Type>> _typeCache = new LookupSlim<Type, DeferredValue<Type, Type>>();
-
-        public bool CanHandleType(Type type)
-        {
-            var deferredValue = _typeCache.GetOrAdd(type, InterfaceTypeValueFactory);
-            return deferredValue.Value != null;
-        }
-
+        
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)
         {
             var interfaceType = _typeCache.GetOrAdd(type, InterfaceTypeValueFactory).Value;
@@ -30,9 +32,17 @@ namespace HandlebarsDotNet.ObjectDescriptors
                 value = ObjectDescriptor.Empty;
                 return false;
             }
-
-            var descriptorCreator = CreateDescriptorMethodInfo
-                .MakeGenericMethod(interfaceType.GetGenericArguments());
+            
+            var genericArguments = interfaceType.GetGenericArguments();
+            var factory = genericArguments[1].GetTypeInfo().IsClass
+                ? genericArguments[0].GetTypeInfo().IsClass
+                    ? CreateClassDescriptorWithClassPropertiesMethodInfo
+                    : CreateClassDescriptorWithStructPropertiesMethodInfo
+                : genericArguments[0].GetTypeInfo().IsClass
+                    ? CreateStructDescriptorWithClassPropertiesMethodInfo
+                    : CreateStructDescriptorWithStructPropertiesMethodInfo;
+            
+            var descriptorCreator = factory.MakeGenericMethod(type, genericArguments[0], genericArguments[1]);
                     
             value = (ObjectDescriptor) descriptorCreator.Invoke(null, ArrayEx.Empty<object>());
             return true;
@@ -49,37 +59,72 @@ namespace HandlebarsDotNet.ObjectDescriptors
                     );
             });
 
-        private static ObjectDescriptor CreateDescriptor<T, TV>()
+        private static ObjectDescriptor CreateClassDescriptorWithClassProperties<T, TK, TV>() 
+            where T : IDictionary<TK, TV>
+            where TK: class
+            where TV: class
         {
-            IEnumerable<object> Enumerate(IDictionary<T, TV> o)
+            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
             {
                 foreach (var key in o.Keys) yield return key;
             }
             
             return new ObjectDescriptor(
-                typeof(IDictionary<T, TV>), 
-                new DictionaryAccessor<T, TV>(),
-                (descriptor, o) => Enumerate((IDictionary<T, TV>) o)
+                typeof(IDictionary<TK, TV>), 
+                new GenericClassDictionaryAccessor<T, TK, TV>(),
+                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
             );
         }
         
-        private class DictionaryAccessor<T, TV> : IMemberAccessor
+        private static ObjectDescriptor CreateClassDescriptorWithStructProperties<T, TK, TV>() 
+            where T : IDictionary<TK, TV>
+            where TK: struct
+            where TV: class
         {
-            private static readonly TypeConverter TypeConverter = TypeDescriptor.GetConverter(typeof(T));
-
-            public bool TryGetValue(object instance, Type instanceType, string memberName, out object value)
+            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
             {
-                var key = (T) TypeConverter.ConvertFromString(memberName);
-                var dictionary = (IDictionary<T, TV>) instance;
-                if (dictionary.TryGetValue(key, out var v))
-                {
-                    value = v;
-                    return true;
-                }
-
-                value = default(TV);
-                return false;
+                foreach (var key in o.Keys) yield return key.AsRef();
             }
+            
+            return new ObjectDescriptor(
+                typeof(IDictionary<TK, TV>), 
+                new GenericClassDictionaryAccessor<T, TK, TV>(),
+                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+            );
+        }
+        
+        private static ObjectDescriptor CreateStructDescriptorWithClassProperties<T, TK, TV>() 
+            where T : IDictionary<TK, TV>
+            where TK: class
+            where TV: struct
+        {
+            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
+            {
+                foreach (var key in o.Keys) yield return key;
+            }
+            
+            return new ObjectDescriptor(
+                typeof(IDictionary<TK, TV>), 
+                new GenericStructDictionaryAccessor<T, TK, TV>(),
+                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+            );
+        }
+        
+        private static ObjectDescriptor CreateStructDescriptorWithStructProperties<T, TK, TV>() 
+            where T : IDictionary<TK, TV>
+            where TK: struct
+            where TV: struct
+        {
+            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
+            {
+                foreach (var key in o.Keys) yield return new Ref<TK>(key);
+            }
+            
+            return new ObjectDescriptor(
+                typeof(IDictionary<TK, TV>), 
+                new GenericStructDictionaryAccessor<T, TK, TV>(),
+                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+            );
         }
     }
 }
