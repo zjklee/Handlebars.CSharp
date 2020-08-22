@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Compiler.Resolvers;
+using HandlebarsDotNet.Compiler.Structure.Path;
 using HandlebarsDotNet.Features;
 using HandlebarsDotNet.Helpers;
+using HandlebarsDotNet.Helpers.BlockHelpers;
 using HandlebarsDotNet.ObjectDescriptors;
 
 namespace HandlebarsDotNet
@@ -11,8 +14,79 @@ namespace HandlebarsDotNet
     /// <summary>
     /// 
     /// </summary>
-    public interface ICompiledHandlebarsConfiguration
+    public interface IHandlebarsDecoratorConfiguration : IHandlebarsTemplateRegistrations
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        ITextEncoder TextEncoder { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IFormatProvider FormatProvider { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        string UnresolvedBindingFormatter { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        bool ThrowOnUnresolvedBindingExpression { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IPartialTemplateResolver PartialTemplateResolver { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IMissingPartialTemplateHandler MissingPartialTemplateHandler { get; set; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IDictionary<PathInfo, Ref<HelperDescriptorBase>> Helpers { get; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IDictionary<PathInfo, Ref<BlockHelperDescriptorBase>> BlockHelpers { get; }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        IList<IHelperResolver> HelperResolvers { get; }
+        
+        /// <inheritdoc cref="IPathInfoStore"/>
+        IPathInfoStore PathInfoStore { get; }
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public interface IHandlebarsTemplateRegistrations
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        IDictionary<string, Action<TextWriter, object>> RegisteredTemplates { get; }
+        ViewEngineFileSystem FileSystem { get; }
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public interface ICompiledHandlebarsConfiguration : IHandlebarsTemplateRegistrations
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        HandlebarsConfiguration UnderlingConfiguration { get; }
+        
         /// <summary>
         /// 
         /// </summary>
@@ -27,11 +101,6 @@ namespace HandlebarsDotNet
         /// 
         /// </summary>
         IFormatProvider FormatProvider { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        ViewEngineFileSystem FileSystem { get; }
         
         /// <summary>
         /// 
@@ -52,31 +121,21 @@ namespace HandlebarsDotNet
         /// 
         /// </summary>
         IMissingPartialTemplateHandler MissingPartialTemplateHandler { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        IDictionary<PathInfo, Ref<HelperDescriptorBase>> Helpers { get; }
         
         /// <summary>
         /// 
         /// </summary>
-        IDictionary<string, HandlebarsHelper> Helpers { get; }
+        IDictionary<PathInfo, Ref<BlockHelperDescriptorBase>> BlockHelpers { get; }
         
         /// <summary>
         /// 
         /// </summary>
-        IDictionary<string, HandlebarsReturnHelper> ReturnHelpers { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IDictionary<string, HandlebarsBlockHelper> BlockHelpers { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        ICollection<IHelperResolver> HelperResolvers { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IDictionary<string, Action<TextWriter, object>> RegisteredTemplates { get; }
+        IList<IHelperResolver> HelperResolvers { get; }
         
         /// <inheritdoc cref="Compatibility"/>
         Compatibility Compatibility { get; }
@@ -85,23 +144,20 @@ namespace HandlebarsDotNet
         IObjectDescriptorProvider ObjectDescriptorProvider { get; }
         
         /// <inheritdoc cref="IExpressionMiddleware"/>
-        ICollection<IExpressionMiddleware> ExpressionMiddleware { get; }
+        IList<IExpressionMiddleware> ExpressionMiddleware { get; }
         
         /// <inheritdoc cref="IMemberAliasProvider"/>
-        ICollection<IMemberAliasProvider> AliasProviders { get; }
+        IList<IMemberAliasProvider> AliasProviders { get; }
         
         /// <inheritdoc cref="IExpressionCompiler"/>
         IExpressionCompiler ExpressionCompiler { get; set; }
-        
-        /// <inheritdoc cref="CompileTimeConfiguration.UseAggressiveCaching"/>
-        bool UseAggressiveCaching { get; set; }
-        
+
         /// <summary>
         /// List of associated <see cref="IFeature"/>s
         /// </summary>
         IReadOnlyList<IFeature> Features { get; }
         
-        /// <inheritdoc cref="IReadOnlyPathInfoStore"/>
-        IReadOnlyPathInfoStore PathInfoStore { get; }
+        /// <inheritdoc cref="IPathInfoStore"/>
+        IPathInfoStore PathInfoStore { get; }
     }
 }

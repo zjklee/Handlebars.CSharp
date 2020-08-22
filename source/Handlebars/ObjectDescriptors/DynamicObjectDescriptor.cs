@@ -11,14 +11,16 @@ namespace HandlebarsDotNet.ObjectDescriptors
     {
         private static readonly DynamicMemberAccessor DynamicMemberAccessor = new DynamicMemberAccessor();
         private static readonly Func<ObjectDescriptor, object, IEnumerable<object>> GetProperties = (descriptor, o) => ((IDynamicMetaObjectProvider) o).GetMetaObject(Expression.Constant(o)).GetDynamicMemberNames();
-
-        public bool CanHandleType(Type type)
-        {
-            return typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type);
-        }
-
+        private static readonly Type Type = typeof(IDynamicMetaObjectProvider);
+        
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)
         {
+            if (!Type.IsAssignableFrom(type))
+            {
+                value = ObjectDescriptor.Empty;;
+                return false;
+            }
+            
             value = new ObjectDescriptor(type, DynamicMemberAccessor, GetProperties);
 
             return true;

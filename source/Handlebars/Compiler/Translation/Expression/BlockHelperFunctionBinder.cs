@@ -2,9 +2,10 @@
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using Expressions.Shortcuts;
 using HandlebarsDotNet.Adapters;
-using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet.Helpers.BlockHelpers;
 using HandlebarsDotNet.ValueProviders;
 using static Expressions.Shortcuts.ExpressionShortcuts;
 
@@ -12,13 +13,15 @@ namespace HandlebarsDotNet.Compiler
 {
     internal class BlockHelperFunctionBinder : HandlebarsExpressionVisitor
     {
+        private enum BlockHelperDirection { Direct, Inverse }
+        
         private CompilationContext CompilationContext { get; }
 
         public BlockHelperFunctionBinder(CompilationContext compilationContext)
         {
             CompilationContext = compilationContext;
         }
-        
+
         protected override Expression VisitStatementExpression(StatementExpression sex)
         {
             return sex.Body is BlockHelperExpression ? Visit(sex.Body) : sex;
@@ -27,184 +30,134 @@ namespace HandlebarsDotNet.Compiler
         protected override Expression VisitBlockHelperExpression(BlockHelperExpression bhex)
         {
             var isInlinePartial = bhex.HelperName == "#*inline";
-
+            
             var pathInfo = CompilationContext.Configuration.PathInfoStore.GetOrAdd(bhex.HelperName);
-            var context = Arg<BindingContext>(CompilationContext.BindingContext);
-            var bindingContext = isInlinePartial 
-                ? context.Cast<object>()
-                : context.Property(o => o.Value);
-
-            var readerContext = Arg(bhex.Context);
-            var body = FunctionBuilder.CompileCore(((BlockExpression) bhex.Body).Expressions, CompilationContext.Configuration);
-            var inverse = FunctionBuilder.CompileCore(((BlockExpression) bhex.Inversion).Expressions, CompilationContext.Configuration);
+            var bindingContext = Arg<BindingContext>(CompilationContext.BindingContext);
+            var context = isInlinePartial
+                ? bindingContext.As<object>()
+                : bindingContext.Property(o => o.Value);
+            
+            var readerContext = bhex.Context;
+            var direct = Compile(bhex.Body);
+            var inverse = Compile(bhex.Inversion);
+            var arguments = CreateArguments();
+            
             var helperName = pathInfo.TrimmedPath;
-            var helperPrefix = bhex.IsRaw || pathInfo.IsBlockHelper ? '#' : '^';
-            var textWriter = context.Property(o => o.TextWriter);
-            var args = bhex.Arguments
-                .ApplyOn((PathExpression pex) => pex.Context = PathExpression.ResolutionContext.Parameter)
-                .Select(o => FunctionBuilder.Reduce(o, CompilationContext));
-            
-            var arguments = Array<object>(args);
-            var configuration = Arg(CompilationContext.Configuration);
-            
-            var reducerNew = New(() => new LambdaReducer(context, body, inverse));
-            var reducer = Var<LambdaReducer>();
-
-            var blockParamsProvider = Var<BlockParamsValueProvider>();
-            var blockParamsExpression = Call(
-                () => BlockParamsValueProvider.Create(context, Arg<BlockParam>(bhex.BlockParams))
-            );
-            
-            var helperOptions = CreateHelperOptions(bhex, helperPrefix, reducer, blockParamsProvider, configuration, context);
+            var direction = bhex.IsRaw || pathInfo.IsBlockHelper ? BlockHelperDirection.Direct : BlockHelperDirection.Inverse;
+            var blockParams = CreateBlockParams();
 
             var blockHelpers = CompilationContext.Configuration.BlockHelpers;
-            if (blockHelpers.TryGetValue(helperName, out var helper))
+
+            if (blockHelpers.TryGetValue(pathInfo, out var descriptor))
             {
-                return Block()
-                    .Parameter(reducer, reducerNew)
-                    .Parameter(blockParamsProvider, blockParamsExpression)
-                    .Line(blockParamsProvider.Using((self, builder) =>
-                    {
-                        builder
-                            .Line(context.Call(o => o.RegisterValueProvider((IValueProvider) self)))
-                            .Line(Try()
-                                .Body(Call(
-                                    () => helper(textWriter, helperOptions, bindingContext, arguments)
-                                ))
-                                .Finally(context.Call(o => o.UnregisterValueProvider((IValueProvider) self)))
-                            );
-                    }));
+                return BindByRef(descriptor);
             }
 
-            foreach (var resolver in CompilationContext.Configuration.HelperResolvers)
+            var helperResolvers = CompilationContext.Configuration.HelperResolvers;
+            for (var index = 0; index < helperResolvers.Count; index++)
             {
-                if (!resolver.TryResolveBlockHelper(helperName, out helper)) continue;
-                
-                return Block()
-                    .Parameter(reducer, reducerNew)
-                    .Parameter(blockParamsProvider, blockParamsExpression)
-                    .Line(blockParamsProvider.Using((self, builder) =>
-                    {
-                        builder
-                            .Line(context.Call(o => o.RegisterValueProvider((IValueProvider) self)))
-                            .Line(Try()
-                                .Body(Call(
-                                    () => helper(textWriter, helperOptions, bindingContext, arguments)
-                                ))
-                                .Finally(context.Call(o => o.UnregisterValueProvider((IValueProvider) self)))
-                            );
-                    }));
+                var resolver = helperResolvers[index];
+                if (!resolver.TryResolveBlockHelper(helperName, out var resolvedDescriptor)) continue;
+
+                return Bind(resolvedDescriptor);
             }
             
-            return Block()
-                .Parameter(reducer, reducerNew)
-                .Parameter(blockParamsProvider, blockParamsExpression)
-                .Line(blockParamsProvider.Using((self, builder) =>
-                {
-                    builder
-                        .Line(context.Call(o => o.RegisterValueProvider((IValueProvider) self)))
-                        .Line(Try()
-                            .Body(Call(
-                                () => LateBoundCall(
-                                    helperName, 
-                                    helperPrefix, 
-                                    context, 
-                                    (IReaderContext) readerContext, 
-                                    textWriter, helperOptions,
-                                    body,
-                                    inverse,
-                                    bindingContext,
-                                    self,
-                                    arguments
-                                )
-                            ))
-                            .Finally(context.Call(o => o.UnregisterValueProvider((IValueProvider) self)))
-                        );
-                }));
-        }
+            var lateBindBlockHelperDescriptor = new LateBindBlockHelperDescriptor(pathInfo, CompilationContext.Configuration);
+            var lateBindBlockHelperRef = new Ref<BlockHelperDescriptorBase>(lateBindBlockHelperDescriptor);
+            blockHelpers.Add(pathInfo, lateBindBlockHelperRef);
 
-        private static ExpressionContainer<HelperOptions> CreateHelperOptions(
-            BlockHelperExpression bhex, 
-            char helperPrefix,
-            ExpressionContainer<LambdaReducer> reducer, 
-            ExpressionContainer<BlockParamsValueProvider> blockParamsProvider, 
-            ExpressionContainer<InternalHandlebarsConfiguration> configuration,
-            ExpressionContainer<BindingContext> context)
-        {
-            ExpressionContainer<HelperOptions> helperOptions;
-            switch (helperPrefix)
+            return BindByRef(lateBindBlockHelperRef);
+            
+            ExpressionContainer<BlockParamsValues> CreateBlockParams()
             {
-                case '#':
-                    helperOptions = New(
-                        () => new HelperOptions(
-                            reducer.Member(o => o.Direct),
-                            reducer.Member(o => o.Inverse),
-                            blockParamsProvider,
-                            configuration,
-                            context)
-                    );
-                    break;
+                var parameters = bhex.BlockParams?.BlockParam?.Parameters;
+                if (parameters == null)
+                {
+                    return Arg(BlockParamsValues.Empty);
+                }
 
-                case '^':
-                    helperOptions = New(
-                        () => new HelperOptions(
-                            reducer.Member(o => o.Inverse),
-                            reducer.Member(o => o.Direct),
-                            blockParamsProvider,
-                            configuration,
-                            context)
-                    );
-                    break;
-
-                default:
-                    throw new HandlebarsCompilerException($"Helper {bhex.HelperName} referenced with unsupported prefix", bhex.Context);
+                var parametersArg = Arg(parameters);
+                return Call(() => BlockParamsValues.Create(parametersArg));
+            }
+            
+            ExpressionContainer<object[]> CreateArguments()
+            {
+                var args = bhex.Arguments
+                    .ApplyOn((PathExpression pex) => pex.Context = PathExpression.ResolutionContext.Parameter)
+                    .Select(o => FunctionBuilder.Reduce(o, CompilationContext));
+            
+                return Array<object>(args);
+            }
+            
+            Action<BindingContext, TextWriter, object> Compile(Expression expression)
+            {
+                var blockExpression = (BlockExpression) expression;
+                return FunctionBuilder.CompileCore(blockExpression.Expressions, CompilationContext.Configuration);
             }
 
-            return helperOptions;
+            Expression BindByRef(Ref<BlockHelperDescriptorBase> value)
+            {
+                return direction switch
+                {
+                    BlockHelperDirection.Direct => Call(() =>
+                        BlockHelperCallBindingByRef(bindingContext, context, blockParams, direct, inverse, arguments, value)),
+                    
+                    BlockHelperDirection.Inverse => Call(() =>
+                        BlockHelperCallBindingByRef(bindingContext, context, blockParams, inverse, direct, arguments, value)),
+                    
+                    _ => throw new HandlebarsCompilerException("Helper referenced with unknown prefix", readerContext)
+                };
+            }
+            
+            Expression Bind(BlockHelperDescriptorBase value)
+            {
+                return direction switch
+                {
+                    BlockHelperDirection.Direct => Call(() =>
+                        BlockHelperCallBinding(bindingContext, context, blockParams, direct, inverse, arguments, value)),
+                    
+                    BlockHelperDirection.Inverse => Call(() =>
+                        BlockHelperCallBinding(bindingContext, context, blockParams, inverse, direct, arguments, value)),
+                    
+                    _ => throw new HandlebarsCompilerException("Helper referenced with unknown prefix", readerContext)
+                };
+            }
         }
 
-        private static void LateBoundCall(
-            string helperName, 
-            char helperPrefix, 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void BlockHelperCallBindingByRef(
             BindingContext bindingContext, 
-            IReaderContext readerContext,
-            TextWriter output, 
-            HelperOptions options, 
-            Action<BindingContext, TextWriter,object> body, 
-            Action<BindingContext, TextWriter,object> inverse,
-            dynamic context, 
-            BlockParamsValueProvider blockParamsValueProvider,
-            params object[] arguments
-        )
+            object context,
+            BlockParamsValues blockParamsValues,
+            Action<BindingContext, TextWriter, object> direct,
+            Action<BindingContext, TextWriter, object> inverse,
+            object[] arguments,
+            Ref<BlockHelperDescriptorBase> helper)
         {
+            BlockHelperCallBinding(bindingContext, context, blockParamsValues, direct, inverse, arguments, helper.Value);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void BlockHelperCallBinding(
+            BindingContext bindingContext, 
+            object context,
+            BlockParamsValues blockParamsValues,
+            Action<BindingContext, TextWriter, object> direct,
+            Action<BindingContext, TextWriter, object> inverse,
+            object[] arguments,
+            BlockHelperDescriptorBase helper)
+        {
+            var helperOptions = HelperOptions.Create(direct, inverse, blockParamsValues, bindingContext);
+
             try
             {
-                if (bindingContext.Configuration.BlockHelpers.TryGetValue(helperName, out var helper))
-                {
-                    helper(output, options, context, arguments);
-                    return;
-                }
-                
-                foreach (var resolver in bindingContext.Configuration.HelperResolvers)
-                {
-                    if (!resolver.TryResolveBlockHelper(helperName, out helper)) continue;
-                    
-                    helper(output, options, context, arguments);
-                        
-                    return;
-                }
-
-                if(arguments.Length > 0) throw new HandlebarsRuntimeException($"Template references a helper that cannot be resolved. BlockHelper '{helperName}'", readerContext);
-                
-                var pathInfo = bindingContext.Configuration.PathInfoStore.GetOrAdd(helperName);
-                var value = PathResolver.ResolvePath(bindingContext, ref pathInfo);
-                DeferredSectionBlockHelper.Helper(bindingContext, helperPrefix, value, body, inverse, blockParamsValueProvider);
+                helper.Invoke(bindingContext.TextWriter, helperOptions, context, arguments);
             }
-            catch(Exception e) when(!(e is HandlebarsException))
+            finally
             {
-                throw new HandlebarsRuntimeException($"Error occured while executing `{helperName}.`", e, readerContext);
+                helperOptions.Dispose();
+                blockParamsValues.Dispose();
             }
         }
     }
 }
-

@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using HandlebarsDotNet.Helpers;
+using HandlebarsDotNet.Helpers.BlockHelpers;
 
 namespace HandlebarsDotNet
 {
@@ -76,6 +78,42 @@ namespace HandlebarsDotNet
         /// <param name="helperName"></param>
         /// <param name="helperFunction"></param>
         void RegisterHelper(string helperName, HandlebarsBlockHelper helperFunction);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="helperName"></param>
+        /// <param name="helperFunction"></param>
+        void RegisterHelper(string helperName, HandlebarsReturnBlockHelper helperFunction);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="helperObject"></param>
+        void RegisterHelper(BlockHelperDescriptor helperObject);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="helperObject"></param>
+        void RegisterHelper(HelperDescriptor helperObject);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="helperObject"></param>
+        void RegisterHelper(ReturnBlockHelperDescriptor helperObject);
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="helperObject"></param>
+        void RegisterHelper(ReturnHelperDescriptor helperObject);
+    }
+    
+    internal interface ICompiledHandlebars
+    {
+        ICompiledHandlebarsConfiguration CompiledConfiguration { get; }
     }
 }
 

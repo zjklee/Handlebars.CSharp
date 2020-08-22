@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 
 namespace HandlebarsDotNet
@@ -26,7 +25,13 @@ namespace HandlebarsDotNet
         /// <param name="value"></param>
         public static void WriteSafeString(this TextWriter writer, object value)
         {
-            writer.WriteSafeString(value.ToString());
+            if (value is string str)
+            {
+                writer.Write(new SafeString(str));
+                return;
+            }
+            
+            writer.Write(new SafeString(value.ToString()));
         }
         
         /// <summary>
@@ -41,20 +46,19 @@ namespace HandlebarsDotNet
 
             return configuration;
         }
-        
-        private class SafeString : ISafeString
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="options"></param>
+        /// <param name="context"></param>
+        /// <param name="selector"></param>
+        /// <returns></returns>
+        public static object This(this HelperOptions options, object context, Func<HelperOptions, Action<TextWriter, object>> selector)
         {
-            private readonly string _value;
-
-            public SafeString(string value)
-            {
-                _value = value;
-            }
-
-            public override string ToString()
-            {
-                return _value;
-            }
+            using var writer = ReusableStringWriter.Get(options.Configuration.FormatProvider);
+            selector(options)(writer, context);
+            return writer.ToString();
         }
     }
 
@@ -63,6 +67,39 @@ namespace HandlebarsDotNet
     /// </summary>
     public interface ISafeString
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        string Value { get; }
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    public class SafeString : ISafeString
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        public string Value { get; }
+            
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="value"></param>
+        public SafeString(string value)
+        {
+            Value = value;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 }
 

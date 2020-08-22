@@ -14,7 +14,11 @@ categories:
     label: 'chore'
 exclude-labels:
   - 'skip-changelog'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-template: | 
+  $TITLE @$AUTHOR (#$NUMBER)
+    $BODY
+    
+  
 template: |
   ## Changes
 
