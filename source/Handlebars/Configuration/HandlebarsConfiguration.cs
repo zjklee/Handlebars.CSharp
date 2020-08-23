@@ -72,7 +72,7 @@ namespace HandlebarsDotNet
         public IMissingPartialTemplateHandler MissingPartialTemplateHandler { get; set; }
         
         /// <inheritdoc cref="IMemberAliasProvider"/>
-        public IList<IMemberAliasProvider> AliasProviders { get; internal set; } = new List<IMemberAliasProvider>();
+        public IList<IMemberAliasProvider> AliasProviders { get; } = new ObservableList<IMemberAliasProvider>();
 
         /// <inheritdoc cref="HandlebarsDotNet.Compatibility"/>
         public Compatibility Compatibility { get; } = new Compatibility();

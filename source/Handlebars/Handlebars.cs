@@ -199,12 +199,12 @@ namespace HandlebarsDotNet
         /// </summary>
         public static void Cleanup()
         {
-            while (Disposables.TryDequeue(out var disposable))
+            foreach (var disposable in Disposables.ToArray())
             {
                 disposable.Dispose();
             }
         }
         
-        internal static readonly ConcurrentQueue<IDisposable> Disposables = new ConcurrentQueue<IDisposable>();
+        internal static readonly ConcurrentBag<IDisposable> Disposables = new ConcurrentBag<IDisposable>();
     }
 }

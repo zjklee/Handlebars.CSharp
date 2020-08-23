@@ -3,7 +3,7 @@ using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.MemberAccessors
 {
-    internal class MergedMemberAccessor : IMemberAccessor
+    public class MergedMemberAccessor : IMemberAccessor
     {
         private readonly IMemberAccessor[] _accessors;
 

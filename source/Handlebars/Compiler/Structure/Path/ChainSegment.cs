@@ -12,7 +12,7 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
         private static readonly char[] TrimStart = {'@'};
         private static readonly LookupSlim<string, ChainSegment> Lookup = new LookupSlim<string, ChainSegment>();
 
-        static ChainSegment() => Handlebars.Disposables.Enqueue(new Disposer());
+        static ChainSegment() => Handlebars.Disposables.Add(new Disposer());
 
         /// <summary>
         /// 
@@ -148,12 +148,11 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
             if (_undefinedBindingResult != null) return _undefinedBindingResult;
             lock (_lock)
             {
-                return _undefinedBindingResult ??
-                       (_undefinedBindingResult = new UndefinedBindingResult(this, configuration));
+                return _undefinedBindingResult ??= new UndefinedBindingResult(this, configuration);
             }
         }
         
-        private class Disposer : IDisposable
+        private sealed class Disposer : IDisposable
         {
             public void Dispose()
             {

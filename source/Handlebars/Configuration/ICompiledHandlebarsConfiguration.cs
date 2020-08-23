@@ -149,6 +149,8 @@ namespace HandlebarsDotNet
         /// <inheritdoc cref="IMemberAliasProvider"/>
         IList<IMemberAliasProvider> AliasProviders { get; }
         
+        IList<IObjectDescriptorProvider> ObjectDescriptorProviders { get; }
+
         /// <inheritdoc cref="IExpressionCompiler"/>
         IExpressionCompiler ExpressionCompiler { get; set; }
 

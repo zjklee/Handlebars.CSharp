@@ -26,8 +26,8 @@ namespace HandlebarsDotNet
             HelperResolvers = new ObservableList<IHelperResolver>(configuration.HelperResolvers);
             RegisteredTemplates = new ObservableDictionary<string, Action<TextWriter, object>>(configuration.RegisteredTemplates);
             PathInfoStore = _pathInfoStore = new PathInfoStore();
-            ObjectDescriptorProvider = CreateObjectDescriptorProvider();
             AliasProviders = new ObservableList<IMemberAliasProvider>(UnderlingConfiguration.AliasProviders);
+            ObjectDescriptorProvider = CreateObjectDescriptorProvider();
 
             ExpressionMiddleware = new ObservableList<IExpressionMiddleware>(UnderlingConfiguration.CompileTimeConfiguration.ExpressionMiddleware);
 
@@ -56,6 +56,7 @@ namespace HandlebarsDotNet
         public IObjectDescriptorProvider ObjectDescriptorProvider { get; }
         public IList<IExpressionMiddleware> ExpressionMiddleware { get; }
         public IList<IMemberAliasProvider> AliasProviders { get; }
+        public IList<IObjectDescriptorProvider> ObjectDescriptorProviders { get; private set; }
         public IExpressionCompiler ExpressionCompiler { get; set; }
         public IReadOnlyList<IFeature> Features { get; }
         public IPathInfoStore PathInfoStore { get; }
@@ -137,8 +138,9 @@ namespace HandlebarsDotNet
 
         private IObjectDescriptorProvider CreateObjectDescriptorProvider()
         {
-            var objectDescriptorProvider = new ObjectDescriptorProvider(this);
-            var providers = new List<IObjectDescriptorProvider>(UnderlingConfiguration.CompileTimeConfiguration.ObjectDescriptorProviders)
+            var objectDescriptorProvider = new ObjectDescriptorProvider(AliasProviders);
+            List<IObjectDescriptorProvider> providers;
+            ObjectDescriptorProviders = providers = new List<IObjectDescriptorProvider>(UnderlingConfiguration.CompileTimeConfiguration.ObjectDescriptorProviders)
             {
                 new PrimitiveTypesObjectDescriptorProvider(),
                 new RefObjectDescriptor(),

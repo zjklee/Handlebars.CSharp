@@ -8,7 +8,7 @@ using HandlebarsDotNet.MemberAccessors;
 
 namespace HandlebarsDotNet.ObjectDescriptors
 {
-    internal class ObjectDescriptorProvider : IObjectDescriptorProvider
+    public class ObjectDescriptorProvider : IObjectDescriptorProvider
     {
         private static readonly Type StringType = typeof(string);
         private static readonly DynamicObjectDescriptor DynamicObjectDescriptor = new DynamicObjectDescriptor();
@@ -17,9 +17,9 @@ namespace HandlebarsDotNet.ObjectDescriptors
         private readonly LookupSlim<Type, DeferredValue<Type, string[]>> _membersCache = new LookupSlim<Type, DeferredValue<Type, string[]>>();
         private readonly ReflectionMemberAccessor _reflectionMemberAccessor;
 
-        public ObjectDescriptorProvider(ICompiledHandlebarsConfiguration configuration)
+        public ObjectDescriptorProvider(IList<IMemberAliasProvider> aliasProviders)
         {
-            _reflectionMemberAccessor = new ReflectionMemberAccessor(configuration);
+            _reflectionMemberAccessor = new ReflectionMemberAccessor(aliasProviders);
         }
         
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)

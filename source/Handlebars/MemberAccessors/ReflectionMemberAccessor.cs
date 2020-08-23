@@ -9,23 +9,22 @@ namespace HandlebarsDotNet.MemberAccessors
 {
     internal sealed class ReflectionMemberAccessor : IMemberAccessor
     {
-        private readonly ICompiledHandlebarsConfiguration _configuration;
         private readonly IMemberAccessor _inner;
+        private readonly IList<IMemberAliasProvider> _aliasProviders;
 
-        public ReflectionMemberAccessor(ICompiledHandlebarsConfiguration configuration)
+        public ReflectionMemberAccessor(IList<IMemberAliasProvider> aliasProviders)
         {
-            _configuration = configuration;
             _inner = new MemberAccessor();
+            _aliasProviders = aliasProviders;
         }
 
         public bool TryGetValue(object instance, Type instanceType, ChainSegment memberName, out object value)
         {
             if (_inner.TryGetValue(instance, instanceType, memberName, out value)) return true;
 
-            var aliasProviders = _configuration.AliasProviders;
-            for (var index = 0; index < aliasProviders.Count; index++)
+            for (var index = 0; index < _aliasProviders.Count; index++)
             {
-                if (aliasProviders[index].TryGetMemberByAlias(instance, instanceType, memberName, out value))
+                if (_aliasProviders[index].TryGetMemberByAlias(instance, instanceType, memberName, out value))
                     return true;
             }
 
@@ -35,22 +34,32 @@ namespace HandlebarsDotNet.MemberAccessors
         
         private sealed class MemberAccessor : IMemberAccessor
         {
-            private readonly LookupSlim<Type, DeferredValue<Type, RawObjectTypeDescriptor>> _descriptors =
+            private static readonly LookupSlim<Type, DeferredValue<Type, RawObjectTypeDescriptor>> Descriptors =
                 new LookupSlim<Type, DeferredValue<Type, RawObjectTypeDescriptor>>();
 
             private static readonly Func<Type, DeferredValue<Type, RawObjectTypeDescriptor>> ValueFactory =
                 key => new DeferredValue<Type, RawObjectTypeDescriptor>(key, type => new RawObjectTypeDescriptor(type));
 
+            static MemberAccessor() => Handlebars.Disposables.Add(new Disposer());
+            
             public bool TryGetValue(object instance, Type instanceType, ChainSegment memberName, out object value)
             {
-                if (!_descriptors.TryGetValue(instanceType, out var deferredValue))
+                if (!Descriptors.TryGetValue(instanceType, out var deferredValue))
                 {
-                    deferredValue = _descriptors.GetOrAdd(instanceType, ValueFactory);
+                    deferredValue = Descriptors.GetOrAdd(instanceType, ValueFactory);
                 }
 
                 var accessor = deferredValue.Value.GetOrCreateAccessor(memberName);
                 value = accessor?.Invoke(instance);
                 return accessor != null;
+            }
+            
+            private sealed class Disposer : IDisposable
+            {
+                public void Dispose()
+                {
+                    Descriptors.Clear();
+                }
             }
         }
 
@@ -67,7 +76,7 @@ namespace HandlebarsDotNet.MemberAccessors
             private static readonly LookupSlim<MemberInfo, DeferredValue<Tuple<MemberInfo, Type>, Func<object, object>>> Delegates = 
                 new LookupSlim<MemberInfo, DeferredValue<Tuple<MemberInfo, Type>, Func<object, object>>>();
             
-            static RawObjectTypeDescriptor() => Handlebars.Disposables.Enqueue(new Disposer());
+            static RawObjectTypeDescriptor() => Handlebars.Disposables.Add(new Disposer());
 
             private readonly LookupSlim<ChainSegment, DeferredValue<KeyValuePair<ChainSegment, Type>, Func<object, object>>>
                 _accessors = new LookupSlim<ChainSegment, DeferredValue<KeyValuePair<ChainSegment, Type>, Func<object, object>>>();
@@ -118,7 +127,7 @@ namespace HandlebarsDotNet.MemberAccessors
                 return o => (object) @delegate((T) o);
             }
             
-            private class Disposer : IDisposable
+            private sealed class Disposer : IDisposable
             {
                 public void Dispose() => Delegates.Clear();
             }

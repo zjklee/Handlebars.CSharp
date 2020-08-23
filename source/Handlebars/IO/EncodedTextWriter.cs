@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Text;
 
 namespace HandlebarsDotNet
@@ -61,6 +62,7 @@ namespace HandlebarsDotNet
 			}
 			
 			var @string = value as string ?? value.ToString();
+			if (value is IDisposable disposable) disposable.Dispose();
 			if(string.IsNullOrEmpty(@string)) return;
 			
 			Write(@string, true);
