@@ -5,36 +5,43 @@ using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    internal sealed class ObjectEnumeratorValueProvider : IValueProvider, IDisposable
+    internal readonly struct ObjectEnumeratorValueProvider : IDisposable
     {
-        private ICompiledHandlebarsConfiguration _configuration;
+        private static readonly Ref<object> UndefinedLast = new Ref<object>(null);
 
-        private static readonly InternalObjectPool<ObjectEnumeratorValueProvider> Pool = new InternalObjectPool<ObjectEnumeratorValueProvider>(new Policy());
-        
-        public static ObjectEnumeratorValueProvider Create(ICompiledHandlebarsConfiguration configuration)
+        public static ObjectEnumeratorValueProvider Create(BindingContext bindingContext)
         {
-            var provider = Pool.Get();
-            provider._configuration = configuration;
-            return provider;
+            return new ObjectEnumeratorValueProvider(
+                bindingContext,
+                RefPool<object>.Shared.Create((object) null),
+                RefPool<int>.Shared.Create(0),
+                RefPool<bool>.Shared.Create(true),
+                RefPool<bool>.Shared.Create(false)
+                );
         }
 
-        public Ref<ChainSegment> Key { get; } = new Ref<ChainSegment>(null);
-        
-        public Ref<int> Index { get; } = new Ref<int>(0);
-
-        public Ref<bool> First { get; } = new Ref<bool>(true);
-
-        public Ref<bool> Last { get; } = new Ref<bool>(false);
-
-        public void Attach(BindingContext bindingContext)
+        private ObjectEnumeratorValueProvider(
+            BindingContext bindingContext, 
+            ReusableRef<object> key, 
+            ReusableRef<int> index, 
+            ReusableRef<bool> first, 
+            ReusableRef<bool> last) : this()
         {
+            Key = key;
+            Index = index;
+            First = first;
+            Last = last;
+
+            var configuration = bindingContext.Configuration;
+            UndefinedLast.SetValue(ChainSegment.Last.GetUndefinedBindingResult(configuration));
+            
             bindingContext.ContextDataObject[ChainSegment.Index] = Index;
             bindingContext.ContextDataObject[ChainSegment.First] = First;
             bindingContext.ContextDataObject[ChainSegment.Key] = Key;
 
-            if (!_configuration.Compatibility.SupportLastInObjectIterations)
+            if (!configuration.Compatibility.SupportLastInObjectIterations)
             {
-                bindingContext.ContextDataObject[ChainSegment.Last] = new UndefinedBindingResult("@last", _configuration).AsRef();
+                bindingContext.ContextDataObject[ChainSegment.Last] = UndefinedLast;
             }
             else
             {
@@ -42,25 +49,20 @@ namespace HandlebarsDotNet.ValueProviders
             }
         }
 
-        public void Dispose() => Pool.Return(this);
+        public readonly ReusableRef<object> Key;
 
-        private class Policy : IInternalObjectPoolPolicy<ObjectEnumeratorValueProvider>
+        public readonly ReusableRef<int> Index;
+
+        public readonly ReusableRef<bool> First;
+
+        public readonly ReusableRef<bool> Last;
+
+        public void Dispose()
         {
-            ObjectEnumeratorValueProvider IInternalObjectPoolPolicy<ObjectEnumeratorValueProvider>.Create()
-            {
-                return new ObjectEnumeratorValueProvider();
-            }
-
-            bool IInternalObjectPoolPolicy<ObjectEnumeratorValueProvider>.Return(ObjectEnumeratorValueProvider item)
-            {
-                item.First.Value = true;
-                item.Last.Value = false;
-                item.Index.Value = 0;
-                item.Key.Value = null;
-                item._configuration = null;
-
-                return true;
-            }
+            RefPool<object>.Shared.Return(Key);
+            RefPool<int>.Shared.Return(Index);
+            RefPool<bool>.Shared.Return(First);
+            RefPool<bool>.Shared.Return(Last);
         }
     }
 }

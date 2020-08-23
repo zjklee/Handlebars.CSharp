@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 using HandlebarsDotNet.Collections;
+using HandlebarsDotNet.Compiler;
 
 namespace HandlebarsDotNet.ObjectDescriptors
 {
     internal class ObjectDescriptorFactory : IObjectDescriptorProvider
     {
-        private readonly IList<IObjectDescriptorProvider> _providers;
         private readonly LookupSlim<Type, DeferredValue<Type, ObjectDescriptor>> _descriptorsCache = new LookupSlim<Type, DeferredValue<Type, ObjectDescriptor>>();
 
-        private static readonly Func<Type, IList<IObjectDescriptorProvider>, DeferredValue<Type, ObjectDescriptor>> ValueFactory = (key, providers) => new DeferredValue<Type, ObjectDescriptor>(key, t =>
+        private static readonly Func<Type, List<IObjectDescriptorProvider>, DeferredValue<Type, ObjectDescriptor>> ValueFactory = (key, providers) => new DeferredValue<Type, ObjectDescriptor>(key, t =>
         {
             for (var index = 0; index < providers.Count; index++)
             {
@@ -21,14 +21,16 @@ namespace HandlebarsDotNet.ObjectDescriptors
             return ObjectDescriptor.Empty;
         });
 
-        public ObjectDescriptorFactory(IList<IObjectDescriptorProvider> providers)
+        public ObjectDescriptorFactory(List<IObjectDescriptorProvider> providers)
         {
-            _providers = providers;
+            Providers = providers;
         }
+        
+        public List<IObjectDescriptorProvider> Providers { get; }
         
         public bool TryGetDescriptor(Type type, out ObjectDescriptor value)
         {
-            var deferredValue = _descriptorsCache.GetOrAdd(type, ValueFactory, _providers);
+            var deferredValue = _descriptorsCache.GetOrAdd(type, ValueFactory, Providers);
             value = deferredValue.Value;
             return !ReferenceEquals(value, ObjectDescriptor.Empty);
         }

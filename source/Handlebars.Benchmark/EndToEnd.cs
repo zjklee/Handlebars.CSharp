@@ -64,10 +64,6 @@ namespace HandlebarsNet.Benchmark
                 case "dictionary":
                     _data = new Dictionary<string, object>{["level1"] = DictionaryLevel1Generator()};
                     break;
-                
-                case "json":
-                    _data = new JObject {["level1"] = JsonLevel1Generator()};
-                    break;
             }
 
             {
@@ -181,50 +177,6 @@ namespace HandlebarsNet.Benchmark
                 for (int i = 0; i < N; i++)
                 {
                     level.Add(new Dictionary<string, object>()
-                    {
-                        ["id"] = $"{id1}-{id2}-{i}"
-                    });
-                }
-
-                return level;
-            }
-
-            JArray JsonLevel1Generator()
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject
-                    {
-                        ["id"] = $"{i}",
-                        ["level2"] = JsonLevel2Generator(i)
-                    });
-                }
-
-                return level;
-            }
-            
-            JArray JsonLevel2Generator(int id1)
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject
-                    {
-                        ["id"] = $"{id1}-{i}",
-                        ["level3"] = JsonLevel3Generator(id1, i)
-                    });
-                }
-
-                return level;
-            }
-            
-            JArray JsonLevel3Generator(int id1, int id2)
-            {
-                var level = new JArray();
-                for (int i = 0; i < N; i++)
-                {
-                    level.Add(new JObject()
                     {
                         ["id"] = $"{id1}-{id2}-{i}"
                     });

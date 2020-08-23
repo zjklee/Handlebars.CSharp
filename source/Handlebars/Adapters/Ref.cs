@@ -34,12 +34,73 @@ namespace HandlebarsDotNet.Adapters
         public abstract void SetValue(object value);
     }
 
+    public class RefPool<T>
+    {
+        public static readonly RefPool<T> Shared;
+
+        static RefPool() => Shared = new RefPool<T>();
+        
+        private readonly InternalObjectPool<ReusableRef<T>> _pool = new InternalObjectPool<ReusableRef<T>>(new Policy());
+        
+        private RefPool()
+        {
+        }
+
+        public ReusableRef<T> Create(T value)
+        {
+            var @ref = _pool.Get();
+            @ref.Value = value;
+            return @ref;
+        }
+        
+        public ReusableRef<T> Create(ReusableRef<T> value)
+        {
+            if (ReferenceEquals(value, null))
+            {
+                return Create((T) default);
+            }
+            
+            var @ref = _pool.Get();
+            @ref.SetValue(value);
+            return @ref;
+        }
+
+        public void Return(ReusableRef<T> item) => _pool.Return(item);
+        
+        private class Policy : IInternalObjectPoolPolicy<ReusableRef<T>>
+        {
+            public ReusableRef<T> Create() => new ReusableRef<T>(default);
+
+            public bool Return(ReusableRef<T> item)
+            {
+                item.Value = default;
+                return true;
+            }
+        }
+    }
+
+    public class ReusableRef<T> : Ref<T>, IDisposable
+    {
+        public ReusableRef(T value) : base(value)
+        {
+        }
+
+        public ReusableRef(ref T value) : base(ref value)
+        {
+        }
+
+        public void Dispose()
+        {
+            RefPool<T>.Shared.Return(this);
+        }
+    }
+    
     /// <inheritdoc cref="Ref"/>
     /// <typeparam name="T"></typeparam>
-    public sealed class Ref<T> : Ref, IEquatable<Ref<T>>, IEquatable<T>
+    public class Ref<T> : Ref, IEquatable<Ref<T>>, IEquatable<T>
     {
         private T _value;
-        private Ref<T> _ref;
+        private Ref _ref;
         
         /// <summary>
         /// 
@@ -47,7 +108,16 @@ namespace HandlebarsDotNet.Adapters
         /// <param name="value"></param>
         public Ref(T value)
         {
-            Value = value;
+            _value = value;
+        }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="value"></param>
+        public Ref(ref T value)
+        {
+            _value = value;
         }
 
         /// <summary>
@@ -57,7 +127,7 @@ namespace HandlebarsDotNet.Adapters
         {
             get
             {
-                if (_ref != null) return _ref.Value;
+                if (_ref != null) return (T) _ref.GetValue();
                 return _value;
             }
             set
@@ -75,7 +145,7 @@ namespace HandlebarsDotNet.Adapters
 
         public override void SetValue(object value)
         {
-            if (value is Ref<T> @ref)
+            if (value is Ref @ref)
             {
                 _ref = @ref;
                 _value = default;

@@ -5,39 +5,43 @@ using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    internal sealed class IteratorValueProvider : IValueProvider, IDisposable
+    internal readonly struct IteratorValueProvider : IDisposable
     {
-        private static readonly InternalObjectPool<IteratorValueProvider> Pool = new InternalObjectPool<IteratorValueProvider>(new Policy());
-
-        public static IteratorValueProvider Create() => Pool.Get();
-
-        public Ref<int> Index { get; } = new Ref<int>(0);
-
-        public Ref<bool> First { get; } = new Ref<bool>(true);
-
-        public Ref<bool> Last { get; } = new Ref<bool>(false);
-        
-        public void Attach(BindingContext bindingContext)
+        public static IteratorValueProvider Create(BindingContext bindingContext)
         {
+            return new IteratorValueProvider(
+                bindingContext, 
+                RefPool<int>.Shared.Create(0), 
+                RefPool<bool>.Shared.Create(true), 
+                RefPool<bool>.Shared.Create(false)
+            );
+        }
+        
+        private IteratorValueProvider(BindingContext bindingContext, 
+            ReusableRef<int> index,
+            ReusableRef<bool> first,
+            ReusableRef<bool> last) : this()
+        {
+            Index = index;
+            First = first;
+            Last = last;
+            
             bindingContext.ContextDataObject[ChainSegment.Index] = Index;
             bindingContext.ContextDataObject[ChainSegment.First] = First;
             bindingContext.ContextDataObject[ChainSegment.Last] = Last;
         }
 
-        public void Dispose() => Pool.Return(this);
+        public readonly ReusableRef<int> Index;
 
-        private class Policy : IInternalObjectPoolPolicy<IteratorValueProvider>
-        {
-            IteratorValueProvider IInternalObjectPoolPolicy<IteratorValueProvider>.Create() => new IteratorValueProvider();
+        public readonly ReusableRef<bool> First;
 
-            bool IInternalObjectPoolPolicy<IteratorValueProvider>.Return(IteratorValueProvider item)
-            {
-                item.First.Value = true;
-                item.Last.Value = false;
-                item.Index.Value = 0;
-
-                return true;
-            }
+        public readonly ReusableRef<bool> Last;
+        
+        public void Dispose()
+        { 
+            RefPool<int>.Shared.Return(Index);
+            RefPool<bool>.Shared.Return(First);
+            RefPool<bool>.Shared.Return(Last);
         }
     }
 }

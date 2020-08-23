@@ -18,7 +18,7 @@ namespace HandlebarsDotNet
 
         public InternalObjectPool(IInternalObjectPoolPolicy<T> policy)
         {
-            Handlebars.Disposables.Enqueue(new Disposer(this));
+            Handlebars.Disposables.Add(new Disposer(this));
             
             _policy = policy;
 
@@ -27,7 +27,7 @@ namespace HandlebarsDotNet
 
         public T Get()
         {
-            if (_queue.TryDequeue(out var item))
+            if (_queue.TryDequeue(out var item) && !ReferenceEquals(item, null))
             {
                 return item;
             }
@@ -37,12 +37,13 @@ namespace HandlebarsDotNet
 
         public void Return(T obj)
         {
+            if(obj == null) return;
             if (!_policy.Return(obj)) return;
             
             _queue.Enqueue(obj);
         }
 
-        private class Disposer : IDisposable
+        private sealed class Disposer : IDisposable
         {
             private readonly InternalObjectPool<T> _target;
 

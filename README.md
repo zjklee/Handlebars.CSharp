@@ -25,8 +25,10 @@ dotnet add package Handlebars.CSharp
 ## Extensions
 | Package           | Version |
 |-------------------|---|
-| Handlebars.Extension.CompileFast | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.CompileFast)](https://www.nuget.org/packages/Handlebars.Extension.CompileFast/) |
-| Handlebars.Extension.Logging | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.Logging)](https://www.nuget.org/packages/Handlebars.Extension.Logging/) |
+| [Handlebars.Extension.Json](https://github.com/zjklee/Handlebars.CSharp/tree/master/source/Handlebars.Extension.Json) | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.Json)](https://www.nuget.org/packages/Handlebars.Extension.Json/) |
+| [Handlebars.Extension.NewtonsoftJson](https://github.com/zjklee/Handlebars.CSharp/tree/master/source/Handlebars.Extension.NewtonsoftJson) | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.NewtonsoftJson)](https://www.nuget.org/packages/Handlebars.Extension.NewtonsoftJson/) |
+| [Handlebars.Extension.CompileFast](https://github.com/zjklee/Handlebars.CSharp/tree/master/source/Handlebars.Extension.CompileFast) | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.CompileFast)](https://www.nuget.org/packages/Handlebars.Extension.CompileFast/) |
+| [Handlebars.Extension.Logging](https://github.com/zjklee/Handlebars.CSharp/tree/master/source/Handlebars.Extension.Logging) | [![Nuget](https://img.shields.io/nuget/v/Handlebars.Extension.Logging)](https://www.nuget.org/packages/Handlebars.Extension.Logging/) |
 
 #### See also
 | GitHub | NuGet |

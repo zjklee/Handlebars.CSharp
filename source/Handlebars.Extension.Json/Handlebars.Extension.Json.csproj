@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.0;</TargetFrameworks>
+        <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT' ">$(TargetFrameworks);net461;net472;</TargetFrameworks>
+        <RootNamespace>HandlebarsDotNet.Extension.Json</RootNamespace>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <Version>1.0.0</Version>
+        <ProjectGuid>8EE1246B-F4B1-41C3-B3B0-E25110488531</ProjectGuid>
+        <SignAssembly>true</SignAssembly>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Description>Microsoft.Extensions.Json adds `System.Text.Json` to Handlebars.CSharp</Description>
+        <PackageIcon>hbnet-extension-icon.png</PackageIcon>
+        <PackageId>Handlebars.Extension.Json</PackageId>
+        <PackageProjectUrl>https://github.com/zjklee/handlebars.csharp</PackageProjectUrl>
+        <PackageTags>handlebars;mustache;templating;engine;compiler;json</PackageTags>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/zjklee/handlebars.csharp</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="..\..\hbnet-extension-icon.png">
+            <Visible>false</Visible>
+            <Pack>true</Pack>
+            <PackagePath>.</PackagePath>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Handlebars\Handlebars.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="System.Text.Json" Version="4.7.2" />
+    </ItemGroup>
+
+</Project>

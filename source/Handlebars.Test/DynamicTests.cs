@@ -1,12 +1,34 @@
-﻿using Xunit;
+﻿using System;
+using System.Collections;
+using Xunit;
 using System.Dynamic;
 using System.Collections.Generic;
+using System.Linq;
+using HandlebarsDotNet.Extension.NewtonsoftJson;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+#if !noJsonSupport
+using System.Text.Json;
+using HandlebarsDotNet.Extension.Json;
+#endif
 
 namespace HandlebarsDotNet.Test
 {
     public class DynamicTests
     {
+        public class EnvGenerator : IEnumerable<object[]>
+        {
+            private readonly List<IHandlebars> _data = new List<IHandlebars>
+            {
+                Handlebars.Create(),
+                Handlebars.Create(new HandlebarsConfiguration().UseNewtonsoftJson())
+            };
+
+            public IEnumerator<object[]> GetEnumerator() => _data.Select(o => new object[] { o }).GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+        
         [Fact]
 		public void DynamicObjectBasicTest()
         {
@@ -24,7 +46,7 @@ namespace HandlebarsDotNet.Test
 		[Fact]
 		public void JsonTestIfTruthy()
 		{
-			var model = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\",\"truthy\":\"test2\"}");
+			var model = JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\",\"truthy\":\"test2\"}");
 
 			var source = "{{myfield}}{{#if truthy}}{{truthy}}{{/if}}";
 
@@ -38,7 +60,7 @@ namespace HandlebarsDotNet.Test
 		[Fact]
 		public void JsonTestIfFalsyMissingField()
 		{
-			var model = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\"}");
+			var model = JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\"}");
 
 			var source = "{{myfield}}{{#if mymissingfield}}{{mymissingfield}}{{/if}}";
 
@@ -52,7 +74,7 @@ namespace HandlebarsDotNet.Test
 		[Fact]
 		public void JsonTestIfFalsyValue()
 		{
-			var model = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\",\"falsy\":null}");
+			var model = JsonConvert.DeserializeObject<ExpandoObject>("{\"myfield\":\"test1\",\"falsy\":null}");
 
 			var source = "{{myfield}}{{#if falsy}}{{falsy}}{{/if}}";
 
@@ -63,44 +85,198 @@ namespace HandlebarsDotNet.Test
 			Assert.Equal("test1", output);
 		}
 
-        [Fact]
-        public void JsonTestArrays(){
-            var model = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>("[{\"Key\": \"Key1\", \"Value\": \"Val1\"},{\"Key\": \"Key2\", \"Value\": \"Val2\"}]");
+        [Theory]
+        [ClassData(typeof(EnvGenerator))]
+        public void JsonTestArrays(IHandlebars handlebars){
+            var model = JsonConvert.DeserializeObject("[{\"Key\": \"Key1\", \"Value\": \"Val1\"},{\"Key\": \"Key2\", \"Value\": \"Val2\"}]");
 
             var source = "{{#each this}}{{Key}}{{Value}}{{/each}}";
 
-            var template = Handlebars.Compile(source);
+            var template = handlebars.Compile(source);
 
             var output = template(model);
 
             Assert.Equal("Key1Val1Key2Val2", output);
         }
         
-        [Fact]
-        public void JsonTestObjects(){
+        [Theory]
+        [ClassData(typeof(EnvGenerator))]
+        public void JsonTestArrayCount(IHandlebars handlebars)
+        {
+	        var model = JsonConvert.DeserializeObject("[{\"Key\": \"Key1\", \"Value\": \"Val1\"},{\"Key\": \"Key2\", \"Value\": \"Val2\"}]");
+
+	        var source = "{{this.Count}}";
+
+	        var template = handlebars.Compile(source);
+
+	        var output = template(model);
+
+	        Assert.Equal("2", output);
+        }
+        
+        [Theory]
+        [ClassData(typeof(EnvGenerator))]
+        public void JsonTestObjects(IHandlebars handlebars){
 	        var model = JObject.Parse("{\"Key1\": \"Val1\", \"Key2\": \"Val2\"}");
 
 	        var source = "{{#each this}}{{@key}}{{@value}}{{/each}}";
 
-	        var template = Handlebars.Compile(source);
+	        var template = handlebars.Compile(source);
 
 	        var output = template(model);
 
 	        Assert.Equal("Key1Val1Key2Val2", output);
         }
 
-        [Fact]
-        public void JObjectTest() {
+        [Theory]
+        [ClassData(typeof(EnvGenerator))]
+        public void JObjectTest(IHandlebars handlebars) {
             object nullValue = null;
             JObject model = JObject.FromObject(new { Nested = new { Prop = "Prop" }, Nested2 = nullValue });
 
             var source = "{{NotExists.Prop}}";
 
-            var template = Handlebars.Compile(source);
+            var template = handlebars.Compile(source);
 
             var output = template(model);
 
             Assert.Equal("", output);
+        }
+        
+        [Theory]
+        [ClassData(typeof(EnvGenerator))]
+        public void WithParentIndexJsonNet(IHandlebars handlebars)
+        {
+            var source = @"
+                {{#each level1}}
+                    id={{id}}
+                    index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                    first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                    last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                    {{#each level2}}
+                        id={{id}}
+                        index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                        first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                        last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                        {{#each level3}}
+                            id={{id}}
+                            index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                            first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                            last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                        {{/each}}
+                    {{/each}}    
+                {{/each}}";
+            
+            var template = handlebars.Compile( source );
+            var data = new
+                {
+                    level1 = new[]{
+                        new {
+                            id = "0",
+                            level2 = new[]{
+                                new {
+                                    id = "0-0",
+                                    level3 = new[]{
+                                        new { id = "0-0-0" },
+                                        new { id = "0-0-1" }
+                                    }
+                                },
+                                new {
+                                    id = "0-1",
+                                    level3 = new[]{
+                                        new { id = "0-1-0" },
+                                        new { id = "0-1-1" }
+                                    }
+                                }
+                            }
+                        },
+                        new {
+                            id = "1",
+                            level2 = new[]{
+                                new {
+                                    id = "1-0",
+                                    level3 = new[]{
+                                        new { id = "1-0-0" },
+                                        new { id = "1-0-1" }
+                                    }
+                                },
+                                new {
+                                    id = "1-1",
+                                    level3 = new[]{
+                                        new { id = "1-1-0" },
+                                        new { id = "1-1-1" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            };
+
+            var json = JObject.FromObject(data);
+
+            var result = template(json);
+
+            const string expected = @"
+                            id=0
+                            index=[::0]
+                            first=[::True]
+                            last=[::False]
+                                id=0-0
+                                index=[:0:0]
+                                first=[:True:True]
+                                last=[:False:False]
+                                    id=0-0-0
+                                    index=[0:0:0]
+                                    first=[True:True:True]
+                                    last=[False:False:False]
+                                    id=0-0-1
+                                    index=[0:0:1]
+                                    first=[True:True:False]
+                                    last=[False:False:True]
+                                id=0-1
+                                index=[:0:1]
+                                first=[:True:False]
+                                last=[:False:True]
+                                    id=0-1-0
+                                    index=[0:1:0]
+                                    first=[True:False:True]
+                                    last=[False:True:False]
+                                    id=0-1-1
+                                    index=[0:1:1]
+                                    first=[True:False:False]
+                                    last=[False:True:True]
+                            id=1
+                            index=[::1]
+                            first=[::False]
+                            last=[::True]
+                                id=1-0
+                                index=[:1:0]
+                                first=[:False:True]
+                                last=[:True:False]
+                                    id=1-0-0
+                                    index=[1:0:0]
+                                    first=[False:True:True]
+                                    last=[True:False:False]
+                                    id=1-0-1
+                                    index=[1:0:1]
+                                    first=[False:True:False]
+                                    last=[True:False:True]
+                                id=1-1
+                                index=[:1:1]
+                                first=[:False:False]
+                                last=[:True:True]
+                                    id=1-1-0
+                                    index=[1:1:0]
+                                    first=[False:False:True]
+                                    last=[True:True:False]
+                                    id=1-1-1
+                                    index=[1:1:1]
+                                    first=[False:False:False]
+                                    last=[True:True:True]";
+            
+            Func<string, string> makeFlat = text => text.Replace( " ", "" ).Replace( "\n", "" ).Replace( "\r", "" );
+
+            Assert.Equal( makeFlat( expected ), makeFlat( result ) );
         }
 
 #if !netstandard
@@ -119,6 +295,181 @@ namespace HandlebarsDotNet.Test
             Assert.Equal("Key1Val1Key2Val2", output);
         }
 
+#endif
+
+#if !noJsonSupport
+        
+        [Fact]
+        public void JsonTestArraysDirect()
+        {
+            var model = JsonDocument.Parse("[{\"Key\": \"Key1\", \"Value\": \"Val1\"},{\"Key\": \"Key2\", \"Value\": \"Val2\"}]");
+
+            Handlebars.Configuration.UseJson();
+            
+            var source = "{{#each this}}{{Key}}{{Value}}{{/each}}";
+
+            var template = Handlebars.Compile(source);
+
+            var output = template(model);
+
+            Assert.Equal("Key1Val1Key2Val2", output);
+        }
+        
+	    [Fact]
+        public void JsonTestObjectsDirect()
+        {
+            var model = JsonDocument.Parse("{\"Key1\": \"Val1\", \"Key2\": \"Val2\"}");
+
+	        var source = "{{#each this}}{{@key}}={{@value}};{{/each}}";
+
+	        var handlebars = Handlebars.Create();
+            handlebars.Configuration.UseJson();
+	        
+	        var template = handlebars.Compile(source);
+
+	        var output = template(model);
+
+	        Assert.Equal("Key1=Val1;Key2=Val2;", output);
+        }
+        
+        [Fact]
+        public void WithParentIndex()
+        {
+            var handlebars = Handlebars.Create();
+            handlebars.Configuration.UseJson();
+            
+            var source = @"
+                {{#each level1}}
+                    id={{id}}
+                    index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                    first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                    last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                    {{#each level2}}
+                        id={{id}}
+                        index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                        first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                        last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                        {{#each level3}}
+                            id={{id}}
+                            index=[{{@../../index}}:{{@../index}}:{{@index}}]
+                            first=[{{@../../first}}:{{@../first}}:{{@first}}]
+                            last=[{{@../../last}}:{{@../last}}:{{@last}}]
+                        {{/each}}
+                    {{/each}}    
+                {{/each}}";
+            
+            var template = handlebars.Compile( source );
+            var data = new
+                {
+                    level1 = new[]{
+                        new {
+                            id = "0",
+                            level2 = new[]{
+                                new {
+                                    id = "0-0",
+                                    level3 = new[]{
+                                        new { id = "0-0-0" },
+                                        new { id = "0-0-1" }
+                                    }
+                                },
+                                new {
+                                    id = "0-1",
+                                    level3 = new[]{
+                                        new { id = "0-1-0" },
+                                        new { id = "0-1-1" }
+                                    }
+                                }
+                            }
+                        },
+                        new {
+                            id = "1",
+                            level2 = new[]{
+                                new {
+                                    id = "1-0",
+                                    level3 = new[]{
+                                        new { id = "1-0-0" },
+                                        new { id = "1-0-1" }
+                                    }
+                                },
+                                new {
+                                    id = "1-1",
+                                    level3 = new[]{
+                                        new { id = "1-1-0" },
+                                        new { id = "1-1-1" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            };
+
+            var json = JsonConvert.SerializeObject(data);
+            var jsonDocument = JsonDocument.Parse(json);
+
+            var result = template(jsonDocument);
+
+            const string expected = @"
+                            id=0
+                            index=[::0]
+                            first=[::True]
+                            last=[::False]
+                                id=0-0
+                                index=[:0:0]
+                                first=[:True:True]
+                                last=[:False:False]
+                                    id=0-0-0
+                                    index=[0:0:0]
+                                    first=[True:True:True]
+                                    last=[False:False:False]
+                                    id=0-0-1
+                                    index=[0:0:1]
+                                    first=[True:True:False]
+                                    last=[False:False:True]
+                                id=0-1
+                                index=[:0:1]
+                                first=[:True:False]
+                                last=[:False:True]
+                                    id=0-1-0
+                                    index=[0:1:0]
+                                    first=[True:False:True]
+                                    last=[False:True:False]
+                                    id=0-1-1
+                                    index=[0:1:1]
+                                    first=[True:False:False]
+                                    last=[False:True:True]
+                            id=1
+                            index=[::1]
+                            first=[::False]
+                            last=[::True]
+                                id=1-0
+                                index=[:1:0]
+                                first=[:False:True]
+                                last=[:True:False]
+                                    id=1-0-0
+                                    index=[1:0:0]
+                                    first=[False:True:True]
+                                    last=[True:False:False]
+                                    id=1-0-1
+                                    index=[1:0:1]
+                                    first=[False:True:False]
+                                    last=[True:False:True]
+                                id=1-1
+                                index=[:1:1]
+                                first=[:False:False]
+                                last=[:True:True]
+                                    id=1-1-0
+                                    index=[1:1:0]
+                                    first=[False:False:True]
+                                    last=[True:True:False]
+                                    id=1-1-1
+                                    index=[1:1:1]
+                                    first=[False:False:False]
+                                    last=[True:True:True]";
+            
+            Func<string, string> makeFlat = text => text.Replace( " ", "" ).Replace( "\n", "" ).Replace( "\r", "" );
+
+            Assert.Equal( makeFlat( expected ), makeFlat( result ) );
+        }
 #endif
 
         private class MyDynamicModel : DynamicObject

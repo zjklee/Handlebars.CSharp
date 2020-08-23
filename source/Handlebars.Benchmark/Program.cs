@@ -15,36 +15,36 @@ namespace HandlebarsNet.Benchmark
     {
         public static async Task Main(string[] args)
         {
-            // var execution = new EndToEnd();
-            // execution.N = 3;
-            // execution.DataType = "dictionary";
+            // var execution = new EndToEndJson();
+            // execution.N = 1;
             // execution.Setup();
+            // //execution.SystemTextJson();
             // for (int i = 0; i < 10000000; i++)
             // {
-            //     execution.Pure();
+            //     execution.SystemTextJson();
             // }
 
             var manualConfig = DefaultConfig.Instance
-                .AddJob(Job.MediumRun.WithToolchain(CsProjCoreToolchain.NetCoreApp31));
+                .AddJob(Job.MediumRun.WithToolchain(CsProjCoreToolchain.NetCoreApp31).WithLaunchCount(1));
                 //.AddJob(Job.MediumRun.WithToolchain(CsProjCoreToolchain.NetCoreApp31).WithNuGet("Handlebars.Net", "1.10.1"));
             
-            var versions = await GetLatestVersions(1);
-            for (var index = 0; index < versions.Length; index++)
-            {
-                var version = versions[index];
-                var packageVersion = version.ToString(3);
-                var job = Job.MediumRun
-                    .WithToolchain(CsProjCoreToolchain.NetCoreApp31)
-                    .WithNuGet("Handlebars.CSharp", packageVersion)
-                    .WithNuGet("Handlebars.Extension.CompileFast", packageVersion);
-            
-                if (index == 0)
-                {
-                    job.AsBaseline();
-                }
-                
-                manualConfig.AddJob(job);
-            }
+            // var versions = await GetLatestVersions(1);
+            // for (var index = 0; index < versions.Length; index++)
+            // {
+            //     var version = versions[index];
+            //     var packageVersion = version.ToString(3);
+            //     var job = Job.MediumRun
+            //         .WithToolchain(CsProjCoreToolchain.NetCoreApp31)
+            //         .WithNuGet("Handlebars.CSharp", packageVersion)
+            //         .WithNuGet("Handlebars.Extension.CompileFast", packageVersion);
+            //
+            //     if (index == 0)
+            //     {
+            //         job.AsBaseline();
+            //     }
+            //     
+            //     manualConfig.AddJob(job);
+            // }
             
             manualConfig.AddLogicalGroupRules(BenchmarkLogicalGroupRule.ByMethod);
             

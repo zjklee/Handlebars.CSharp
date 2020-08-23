@@ -24,11 +24,14 @@ namespace HandlebarsDotNet.Compiler
         {
             return Pool.CreateContext(configuration, value, writer, parent, templatePath, partialBlockTemplate);
         }
+        
+        private readonly Ref<object> _rootRef = new Ref<object>(null);
+        private readonly Ref<object> _parentRef = new Ref<object>(null);
 
         private BindingContext()
         {
             InlinePartialTemplates = new Dictionary<string, Action<TextWriter, object>>();
-            
+
             ContextDataObject = new Dictionary<ChainSegment, Ref>(10);
             BlockParamsObject = new Dictionary<ChainSegment, Ref>(3);
             
@@ -42,11 +45,18 @@ namespace HandlebarsDotNet.Compiler
         private void Initialize()
         {
             Root = ParentContext?.Root ?? this;
+            _rootRef.Value = Root.Value;
+
+            ContextDataObject[ChainSegment.Root] = _rootRef;
+            ContextDataObject[ChainSegment.Parent] = _parentRef;
             
-            ContextDataObject[ChainSegment.Root] = Root.Value.AsRef();
-            ContextDataObject[ChainSegment.Parent] = new Ref<object>(ParentContext?.Value ?? ChainSegment.Parent.GetUndefinedBindingResult(Configuration));
-            
-            if (ParentContext == null) return;
+            if (ParentContext == null)
+            {
+                _parentRef.Value = ChainSegment.Parent.GetUndefinedBindingResult(Configuration);
+                return;
+            }
+
+            _parentRef.Value = ParentContext.Value;
 
             TemplatePath = ParentContext.TemplatePath ?? TemplatePath;
             

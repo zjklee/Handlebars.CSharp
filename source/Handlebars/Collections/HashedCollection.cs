@@ -7,7 +7,16 @@ namespace HandlebarsDotNet.Compiler
     internal class HashedCollection<T> : IReadOnlyList<T>, ICollection<T> where T:class
     {
         private readonly List<T> _list = new List<T>();
-        private readonly Dictionary<T, int> _mapping = new Dictionary<T, int>();
+        private readonly Dictionary<T, int> _mapping;
+
+        public HashedCollection(IList<T> outer = null, IEqualityComparer<T> comparer = null)
+        {
+            comparer ??= EqualityComparer<T>.Default;
+            _mapping= new Dictionary<T, int>(comparer);
+            if (outer == null) return;
+            
+            for (var index = 0; index < outer.Count; index++) Add(outer[index]);
+        }
         
         public IEnumerator<T> GetEnumerator()
         {

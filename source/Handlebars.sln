@@ -20,6 +20,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Handlebars.Extension.Compil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Handlebars.Extension.Logger", "Handlebars.Extension.Logger\Handlebars.Extension.Logger.csproj", "{68ACA1C9-CAA6-40A9-B7B4-B619663E5E04}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Handlebars.Extension.Json", "Handlebars.Extension.Json\Handlebars.Extension.Json.csproj", "{A879F8CF-6F00-482B-9039-9EAC797862AC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Handlebars.Extension.NewtonsoftJson", "Handlebars.Extension.NewtonsoftJson\Handlebars.Extension.NewtonsoftJson.csproj", "{EAD3AF39-CB9E-4B7D-AD3E-A1CB814C5F60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +50,14 @@ Global
 		{68ACA1C9-CAA6-40A9-B7B4-B619663E5E04}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{68ACA1C9-CAA6-40A9-B7B4-B619663E5E04}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{68ACA1C9-CAA6-40A9-B7B4-B619663E5E04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A879F8CF-6F00-482B-9039-9EAC797862AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A879F8CF-6F00-482B-9039-9EAC797862AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A879F8CF-6F00-482B-9039-9EAC797862AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A879F8CF-6F00-482B-9039-9EAC797862AC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EAD3AF39-CB9E-4B7D-AD3E-A1CB814C5F60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EAD3AF39-CB9E-4B7D-AD3E-A1CB814C5F60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EAD3AF39-CB9E-4B7D-AD3E-A1CB814C5F60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EAD3AF39-CB9E-4B7D-AD3E-A1CB814C5F60}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

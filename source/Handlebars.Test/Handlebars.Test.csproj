@@ -18,11 +18,11 @@
   <PropertyGroup Condition="'$(TargetFramework)'=='net472'">
     <DefineConstants>$(DefineConstants);netFramework</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net451'">
+  <PropertyGroup Condition="'$(TargetFramework)'=='net461'">
     <DefineConstants>$(DefineConstants);netFramework</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)'=='net452'">
-    <DefineConstants>$(DefineConstants);netFramework</DefineConstants>
+    <DefineConstants>$(DefineConstants);netFramework;noJsonSupport</DefineConstants>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(TargetFramework)'=='netcoreapp2.1'">
@@ -35,6 +35,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Handlebars.Extension.CompileFast\Handlebars.Extension.CompileFast.csproj" />
     <ProjectReference Include="..\Handlebars.Extension.Logger\Handlebars.Extension.Logger.csproj" />
+    <ProjectReference Include="..\Handlebars.Extension.NewtonsoftJson\Handlebars.Extension.NewtonsoftJson.csproj" />
     <ProjectReference Include="..\Handlebars\Handlebars.csproj" />
   </ItemGroup>
 
@@ -67,5 +68,9 @@
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
   </ItemGroup>
-
+  
+  <ItemGroup Condition="'$(TargetFramework)' != 'net452'">
+    <ProjectReference Include="..\Handlebars.Extension.Json\Handlebars.Extension.Json.csproj" />
+  </ItemGroup>
+  
 </Project>

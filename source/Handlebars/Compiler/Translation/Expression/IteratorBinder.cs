@@ -57,6 +57,8 @@ namespace HandlebarsDotNet.Compiler
 
     internal static class Iterator
     {
+        private static readonly RefPool<object> RefPool = RefPool<object>.Shared;
+        
         public static void Iterate(BindingContext context,
             BlockParamsValues blockParamsValues,
             object target,
@@ -76,6 +78,22 @@ namespace HandlebarsDotNet.Compiler
                 return;
             }
 
+            var enumerator = descriptor.GetEnumerator;
+            if (enumerator != null)
+            {
+                var enumerable = enumerator(descriptor, target);
+                if (enumerable is IEnumerable<KeyValuePair<object, object>> valuePairs)
+                {
+                    IterateCustomObjectEnumerator(context, blockParamsValues, valuePairs, template, ifEmpty);
+                }
+                else
+                {
+                    IterateEnumerable(context, blockParamsValues, enumerable, template, ifEmpty);
+                }
+    
+                return;
+            }
+            
             if (!descriptor.ShouldEnumerate)
             {
                 var properties = descriptor.GetProperties(descriptor, target);
@@ -107,17 +125,16 @@ namespace HandlebarsDotNet.Compiler
             Action<BindingContext, TextWriter, object> template,
             Action<BindingContext, TextWriter, object> ifEmpty)
         {
-            using var iterator = ObjectEnumeratorValueProvider.Create(context.Configuration);
             using var innerContext = context.CreateChildContext();
+            using var iterator = ObjectEnumeratorValueProvider.Create(innerContext);
             
             var accessor = descriptor.MemberAccessor;
             var enumerable = new ExtendedEnumerable<object>(properties);
-            bool enumerated = false;
+            var enumerated = false;
             
-            iterator.Attach(innerContext);
             (blockParamsValues as IValueProvider).Attach(innerContext);
                     
-            var iteratorValue = new Ref<object>(null);
+            using var iteratorValue = CreateIteratorValue();
             innerContext.ContextDataObject[ChainSegment.Value] = iteratorValue;
             blockParamsValues[0] = iteratorValue;
             blockParamsValues[1] = iterator.Key;
@@ -154,15 +171,15 @@ namespace HandlebarsDotNet.Compiler
             Action<BindingContext, TextWriter, object> template,
             Action<BindingContext, TextWriter, object> ifEmpty)
         {
-            using var iterator = ObjectEnumeratorValueProvider.Create(context.Configuration);
             using var innerContext = context.CreateChildContext();
+            using var iterator = ObjectEnumeratorValueProvider.Create(innerContext);
             
             var accessor = descriptor.MemberAccessor;
             var count = properties.Count;
-            iterator.Attach(innerContext);
+            
             (blockParamsValues as IValueProvider).Attach(innerContext);
                     
-            Ref iteratorValue = new Ref<object>(null);
+            using var iteratorValue = CreateIteratorValue();
             innerContext.ContextDataObject[ChainSegment.Value] = iteratorValue;
             blockParamsValues[0] = iteratorValue;
             blockParamsValues[1] = iterator.Key;
@@ -197,14 +214,13 @@ namespace HandlebarsDotNet.Compiler
             Action<BindingContext, TextWriter, object> template,
             Action<BindingContext, TextWriter, object> ifEmpty)
         {
-            using var iterator = IteratorValueProvider.Create();
             using var innerContext = context.CreateChildContext();
-            
+            using var iterator = IteratorValueProvider.Create(innerContext);
+
             var count = target.Count;
-            iterator.Attach(innerContext);
             (blockParamsValues as IValueProvider).Attach(innerContext);
 
-            var iteratorValue = new Ref<object>(null);
+            using var iteratorValue = CreateIteratorValue();
             innerContext.ContextDataObject[ChainSegment.Value] = iteratorValue;
             blockParamsValues[0] = iteratorValue;
             blockParamsValues[1] = iterator.Index;
@@ -235,17 +251,16 @@ namespace HandlebarsDotNet.Compiler
             Action<BindingContext, TextWriter, object> template,
             Action<BindingContext, TextWriter, object> ifEmpty)
         {
-            using var iterator = IteratorValueProvider.Create();
             using var innerContext = context.CreateChildContext();
-            
-            var enumerated = false;
-            var enumerable = new ExtendedEnumerable<object>(target);
+            using var iterator = IteratorValueProvider.Create(innerContext);
 
-            iterator.Attach(innerContext);
+            var enumerated = false;
+            var enumerable = new ExtendedEnumerable2<object>(target);
+            
             blockParamsValues.As<IValueProvider>().Attach(innerContext);
-                    
+
             var index = 0;
-            var iteratorValue = new Ref<object>(null);
+            using var iteratorValue = CreateIteratorValue();
             innerContext.ContextDataObject[ChainSegment.Value] = iteratorValue;
             blockParamsValues[0] = iteratorValue;
             blockParamsValues[1] = iterator.Index;
@@ -269,6 +284,48 @@ namespace HandlebarsDotNet.Compiler
                 ifEmpty(context, context.TextWriter, context.Value);
             }
         }
+        
+        private static void IterateCustomObjectEnumerator(BindingContext context,
+            BlockParamsValues blockParamsValues,
+            IEnumerable<KeyValuePair<object, object>> properties,
+            Action<BindingContext, TextWriter, object> template,
+            Action<BindingContext, TextWriter, object> ifEmpty)
+        {
+            using var innerContext = context.CreateChildContext();
+            using var iterator = ObjectEnumeratorValueProvider.Create(innerContext);
+    
+            var enumerable = new ExtendedEnumerable<KeyValuePair<object, object>>(properties);
+            var enumerated = false;
+            
+            (blockParamsValues as IValueProvider).Attach(innerContext);
+            
+            using var iteratorValue = CreateIteratorValue();
+            innerContext.ContextDataObject[ChainSegment.Value] = iteratorValue;
+            blockParamsValues[0] = iteratorValue;
+            blockParamsValues[1] = iterator.Key;
+            
+            foreach (var enumerableValue in enumerable)
+            {
+                enumerated = true;
+                var property = enumerableValue.Value;
+                iterator.Key.Value = property.Key;
+                iterator.First.Value = enumerableValue.IsFirst;
+                iterator.Last.Value = enumerableValue.IsLast;
+                iterator.Index.Value = enumerableValue.Index;
+
+                iteratorValue.Value = property.Value;
+                innerContext.Value = property.Value;
+                
+                template(context, context.TextWriter, innerContext);
+            }
+
+            if (iterator.Index == 0 && !enumerated)
+            {
+                ifEmpty(context, context.TextWriter, context.Value);
+            }
+        }
+        
+        private static ReusableRef<object> CreateIteratorValue() => RefPool.Create((object) null);
     }
 }
 
