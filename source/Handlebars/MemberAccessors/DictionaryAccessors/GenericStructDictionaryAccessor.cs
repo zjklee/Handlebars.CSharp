@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.MemberAccessors.DictionaryAccessors
@@ -18,11 +17,11 @@ namespace HandlebarsDotNet.MemberAccessors.DictionaryAccessors
             var dictionary = (T) instance;
             if (key != null && dictionary.TryGetValue(key, out var v))
             {
-                value = v.AsRef();
+                value = v;
                 return true;
             }
 
-            value = default(TV).AsRef();
+            value = default(TV);
             return false;
         }
     }

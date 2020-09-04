@@ -13,7 +13,7 @@ namespace HandlebarsDotNet.Compiler
         {
         }
 
-        public static Expression<Action<TextWriter, object>> Bind(CompilationContext context, Expression body, Expression parentContext, string templatePath)
+        public static Expression<Action<TextWriter, object>> Bind(CompilationContext context, Expression body, Expression parentContext)
         {
             var configuration = Arg(context.Configuration);
             
@@ -22,11 +22,11 @@ namespace HandlebarsDotNet.Compiler
             
             var bindingContext = Arg<BindingContext>(context.BindingContext);
             var textEncoder = configuration.Property(o => o.TextEncoder);
-            var encodedWriterExpression = Call(() => EncodedTextWriter.From(writerParameter, (ITextEncoder) textEncoder));
+            var encodedWriterExpression = Call(() => EncodedTextWriter.From(writerParameter, (ITextEncoder)textEncoder));
             var parentContextArg = Arg<BindingContext>(parentContext);
             
-            var newBindingContext = Call(
-                () => BindingContext.Create((ICompiledHandlebarsConfiguration) configuration, objectParameter, encodedWriterExpression, parentContextArg, templatePath)
+            var newBindingContext = Call(() =>
+                BindingContext.Create((ICompiledHandlebarsConfiguration) configuration, objectParameter, encodedWriterExpression, parentContextArg)
             );
             
             Expression blockBuilder = Block()
@@ -57,7 +57,7 @@ namespace HandlebarsDotNet.Compiler
             return Expression.Lambda<Action<TextWriter, object>>(blockBuilder, (ParameterExpression) writerParameter.Expression, (ParameterExpression) objectParameter.Expression);
         }
         
-        public static Expression<Action<BindingContext, TextWriter, object>> Bind(CompilationContext context, Expression body, string templatePath)
+        public static Expression<Action<BindingContext, TextWriter, object>> Bind(CompilationContext context, Expression body)
         {
             var configuration = Arg(context.Configuration);
             
@@ -66,11 +66,11 @@ namespace HandlebarsDotNet.Compiler
             
             var bindingContext = Arg<BindingContext>(context.BindingContext);
             var textEncoder = configuration.Property(o => o.TextEncoder);
-            var encodedWriterExpression = Call(() => EncodedTextWriter.From(writerParameter, (ITextEncoder) textEncoder));
+            var encodedWriterExpression = textEncoder.Call(e => EncodedTextWriter.From(writerParameter, e));
             var parentContextArg = Var<BindingContext>("parentContext");
             
-            var newBindingContext = Call(
-                () => BindingContext.Create((ICompiledHandlebarsConfiguration) configuration, objectParameter, encodedWriterExpression, parentContextArg, templatePath)
+            var newBindingContext = Call(() => 
+                BindingContext.Create((ICompiledHandlebarsConfiguration) configuration, objectParameter, encodedWriterExpression, parentContextArg)
             );
             
             Expression blockBuilder = Block()
@@ -82,7 +82,7 @@ namespace HandlebarsDotNet.Compiler
                     .Then(block => 
                     {
                         block.Line(shouldDispose.Assign(true));
-                        block.Line(bindingContext.Assign(newBindingContext));
+                        block.Line(bindingContext.Assign(newBindingContext.As<BindingContext>()));
                     })
                 )
                 .Line(Try()

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using HandlebarsDotNet.Adapters;
 
 namespace HandlebarsDotNet.MemberAccessors.EnumerableAccessors
 {
@@ -11,7 +10,7 @@ namespace HandlebarsDotNet.MemberAccessors.EnumerableAccessors
         protected override bool TryGetValueInternal(object instance, int index, out object value)
         {
             var list = (T) instance;
-            value = list.ElementAtOrDefault(index).AsRef();
+            value = list.ElementAtOrDefault(index);
             return true;
         }
     }

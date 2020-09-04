@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HandlebarsDotNet.Collections;
+using HandlebarsDotNet.Iterators;
 using HandlebarsDotNet.MemberAccessors.DictionaryAccessors;
 using HandlebarsDotNet.Polyfills;
 
@@ -49,24 +50,24 @@ namespace HandlebarsDotNet.ObjectDescriptors
             });
 
         private static ObjectDescriptor CreateClassDescriptor<T, TV>() 
-            where T : IDictionary<string, TV>
+            where T : class, IDictionary<string, TV>
             where TV: class
         {
-            return new ObjectDescriptor(
-                typeof(IDictionary<string, TV>),
+            return new ObjectDescriptor<T>(
                 new StringClassDictionaryAccessor<T, TV>(),
-                (descriptor, o) => ((T) o).Keys
+                self => new DictionaryIterator<T, string, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
         
         private static ObjectDescriptor CreateStructDescriptor<T, TV>()
-            where T : IDictionary<string, TV>
+            where T : class, IDictionary<string, TV>
             where TV: struct
         {
-            return new ObjectDescriptor(
-                typeof(IDictionary<string, TV>),
+            return new ObjectDescriptor<T>(
                 new StringStructDictionaryAccessor<T, TV>(),
-                (descriptor, o) => ((T) o).Keys
+                self => new DictionaryIterator<T, string, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
     }

@@ -14,11 +14,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Handlebars.Extension.Json\Handlebars.Extension.Json.csproj" />
-      <ProjectReference Include="..\Handlebars.Extension.Logger\Handlebars.Extension.Logger.csproj" />
-      <ProjectReference Include="..\Handlebars.Extension.CompileFast\Handlebars.Extension.CompileFast.csproj" />
-      <ProjectReference Include="..\Handlebars.Extension.NewtonsoftJson\Handlebars.Extension.NewtonsoftJson.csproj" />
+<!--      <ProjectReference Include="..\Handlebars.Extension.Json\Handlebars.Extension.Json.csproj" />-->
+<!--      <ProjectReference Include="..\Handlebars.Extension.Logger\Handlebars.Extension.Logger.csproj" />-->
+<!--      <ProjectReference Include="..\Handlebars.Extension.CompileFast\Handlebars.Extension.CompileFast.csproj" />-->
+<!--      <ProjectReference Include="..\Handlebars.Extension.NewtonsoftJson\Handlebars.Extension.NewtonsoftJson.csproj" />-->
       <ProjectReference Include="..\Handlebars\Handlebars.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Compilation.cs" />
+      <Compile Remove="Json.cs" />
     </ItemGroup>
 
 </Project>

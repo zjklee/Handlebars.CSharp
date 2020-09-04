@@ -3,8 +3,8 @@ using System.IO;
 using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using HandlebarsDotNet;
-using HandlebarsDotNet.Extension.Json;
-using HandlebarsDotNet.Extension.NewtonsoftJson;
+// using HandlebarsDotNet.Extension.Json;
+// using HandlebarsDotNet.Extension.NewtonsoftJson;
 using Newtonsoft.Json.Linq;
 
 namespace HandlebarsNet.Benchmark
@@ -124,9 +124,7 @@ namespace HandlebarsNet.Benchmark
             _newtonsoft(TextWriter.Null, document);
         }
 
-        public void Dispose()
-        {
-            Handlebars.Cleanup();
-        }
+        [GlobalCleanup]
+        public void Dispose() => Handlebars.Cleanup();
     }
 }

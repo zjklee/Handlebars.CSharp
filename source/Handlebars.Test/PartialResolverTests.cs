@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using HandlebarsDotNet.Compiler;
 using Xunit;
 
 namespace HandlebarsDotNet.Test
@@ -6,14 +9,15 @@ namespace HandlebarsDotNet.Test
     {
         public class CustomPartialResolver : IPartialTemplateResolver
         {
-            public bool TryRegisterPartial(IHandlebars env, string partialName, string templatePath)
+            public bool TryResolvePartial(ICompiledHandlebarsConfiguration configuration, string partialName, out Action<TextWriter, object> partial)
             {
                 if (partialName == "person")
                 {
-                    env.RegisterTemplate("person", "{{name}}");
+                    partial = HandlebarsCompiler.Compile("{{name}}", configuration);
                     return true;
                 }
 
+                partial = null;
                 return false;
             }
         }

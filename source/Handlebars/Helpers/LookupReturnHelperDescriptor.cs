@@ -7,22 +7,21 @@ namespace HandlebarsDotNet.Helpers
     {
         private readonly ICompiledHandlebarsConfiguration _configuration;
 
-        public LookupReturnHelperDescriptor(ICompiledHandlebarsConfiguration configuration) : base(configuration.PathInfoStore.GetOrAdd("lookup"))
+        public LookupReturnHelperDescriptor(ICompiledHandlebarsConfiguration configuration) : base(TemplateContext.Shared.PathInfoStore.GetOrAdd("lookup"))
         {
             _configuration = configuration;
         }
 
-        public override object Invoke(object context, params object[] arguments)
+        protected override object Invoke(object context, params object[] arguments)
         {
             if (arguments.Length != 2)
             {
                 throw new HandlebarsException("{{lookup}} helper must have exactly two argument");
             }
             
-            var memberName = arguments[1].ToString();
-            var segment = ChainSegment.Create(memberName);
+            var segment = ChainSegment.Create(_configuration.TemplateContext, arguments[1]);
             return !PathResolver.TryAccessMember(arguments[0], segment, _configuration, out var value) 
-                ? new UndefinedBindingResult(memberName, _configuration)
+                ? new UndefinedBindingResult(segment, _configuration)
                 : value;
         }
     }

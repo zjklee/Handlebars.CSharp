@@ -8,31 +8,39 @@ using HandlebarsDotNet.Compiler.Lexer;
 
 namespace HandlebarsDotNet.Compiler
 {
-    internal static class HandlebarsCompiler
+    public static class HandlebarsCompiler
     {
         public static Action<TextWriter, object> Compile(ExtendedStringReader source, ICompiledHandlebarsConfiguration configuration)
         {
-            var createdFeatures = configuration.Features;
-            for (var index = 0; index < createdFeatures.Count; index++)
-            {
-                createdFeatures[index].OnCompiling(configuration);
-            }
-            
-            var expressionBuilder = new ExpressionBuilder(configuration);
             var tokens = Tokenizer.Tokenize(source).ToList();
-            var expressions = expressionBuilder.ConvertTokensToExpressions(tokens);
-            var action = FunctionBuilder.Compile(expressions, configuration);
-            
-            for (var index = 0; index < createdFeatures.Count; index++)
-            {
-                createdFeatures[index].CompilationCompleted();
-            }
+            var expressions = ExpressionBuilder.ConvertTokensToExpressions(tokens, configuration);
 
-            return action;
+            return FunctionBuilder.Compile(expressions, configuration);
+        }
+        
+        public static Action<TextWriter, object> Compile(string template, ICompiledHandlebarsConfiguration configuration)
+        {
+            using var reader = new StringReader(template);
+            using var source = new ExtendedStringReader(reader);
+            var tokens = Tokenizer.Tokenize(source).ToList();
+            var expressions = ExpressionBuilder.ConvertTokensToExpressions(tokens, configuration);
+
+            return FunctionBuilder.Compile(expressions, configuration);
+        }
+        
+        public static Action<TextWriter, object> Compile(ICompiledHandlebarsConfiguration configuration)
+        {
+            using var reader = new StringReader(configuration.TemplateProperties.TemplatePath);
+            using var source = new ExtendedStringReader(reader);
+            var tokens = Tokenizer.Tokenize(source).ToList();
+            var expressions = ExpressionBuilder.ConvertTokensToExpressions(tokens, configuration);
+
+            return FunctionBuilder.Compile(expressions, configuration);
         }
 
-        internal static Action<TextWriter, object> CompileView(ViewReaderFactory readerFactoryFactory, string templatePath, ICompiledHandlebarsConfiguration configuration)
+        public static Action<TextWriter, object> CompileView(ViewReaderFactory readerFactoryFactory, ICompiledHandlebarsConfiguration configuration)
         {
+            var templatePath = configuration.TemplateProperties.TemplatePath;
             IEnumerable<object> tokens;
             using (var sr = readerFactoryFactory(configuration, templatePath))
             {
@@ -43,10 +51,9 @@ namespace HandlebarsDotNet.Compiler
             }
 
             var layoutToken = tokens.OfType<LayoutToken>().SingleOrDefault();
-
-            var expressionBuilder = new ExpressionBuilder(configuration);
-            var expressions = expressionBuilder.ConvertTokensToExpressions(tokens);
-            var compiledView = FunctionBuilder.Compile(expressions, configuration, templatePath);
+            
+            var expressions = ExpressionBuilder.ConvertTokensToExpressions(tokens, configuration);
+            var compiledView = FunctionBuilder.Compile(expressions, configuration);
             if (layoutToken == null) return compiledView;
 
             var fs = configuration.FileSystem;
@@ -70,7 +77,46 @@ namespace HandlebarsDotNet.Compiler
             };
         }
         
-        internal class DynamicViewModel : DynamicObject
+        private static Action<TextWriter, object> CompileView(ViewReaderFactory readerFactoryFactory, string templatePath,  ICompiledHandlebarsConfiguration configuration)
+        {
+            //var templatePath = configuration.TemplateProperties.TemplatePath;
+            IEnumerable<object> tokens;
+            using (var sr = readerFactoryFactory(configuration, templatePath))
+            {
+                using (var reader = new ExtendedStringReader(sr))
+                {
+                    tokens = Tokenizer.Tokenize(reader).ToList();
+                }
+            }
+
+            var layoutToken = tokens.OfType<LayoutToken>().SingleOrDefault();
+            
+            var expressions = ExpressionBuilder.ConvertTokensToExpressions(tokens, configuration);
+            var compiledView = FunctionBuilder.Compile(expressions, configuration);
+            if (layoutToken == null) return compiledView;
+
+            var fs = configuration.FileSystem;
+            var layoutPath = fs.Closest(templatePath, layoutToken.Value + ".hbs");
+            if (layoutPath == null)
+                throw new InvalidOperationException("Cannot find layout '" + layoutPath + "' for template '" +
+                                                    templatePath + "'");
+
+            var compiledLayout = CompileView(readerFactoryFactory, layoutPath, configuration);
+
+            return (tw, vm) =>
+            {
+                string inner;
+                using (var innerWriter = ReusableStringWriter.Get(configuration.FormatProvider))
+                {
+                    compiledView(innerWriter, vm);
+                    inner = innerWriter.ToString();
+                }
+
+                compiledLayout(tw, new DynamicViewModel(new[] {new {body = inner}, vm}));
+            };
+        }
+
+        private class DynamicViewModel : DynamicObject
         {
             private readonly object[] _objects;
             private static readonly BindingFlags BindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase;

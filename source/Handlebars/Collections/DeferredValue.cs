@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace HandlebarsDotNet.Collections
 {
@@ -10,14 +11,18 @@ namespace HandlebarsDotNet.Collections
         private T _value;
         private bool _isValueCreated;
 
-        public DeferredValue(TState state, Func<TState, T> factory)
+        public DeferredValue(in TState state, Func<TState, T> factory)
         {
             _state = state;
             _factory = factory;
         }
         
+        /// <summary>
+        /// Value will be computed at least once
+        /// </summary>
         public T Value
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (_isValueCreated) return _value;
@@ -26,6 +31,12 @@ namespace HandlebarsDotNet.Collections
                 _isValueCreated = true;
                 return _value;
             }
+        }
+
+        public override string ToString()
+        {
+            if (!_isValueCreated) return "not yet computed";
+            return Value.ToString();
         }
     }
 }

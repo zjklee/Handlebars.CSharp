@@ -10,8 +10,8 @@ using HandlebarsDotNet.Helpers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using HandlebarsDotNet.Features;
-using HandlebarsDotNet.Extension.CompileFast;
-using HandlebarsDotNet.Extension.Logger;
+// using HandlebarsDotNet.Extension.CompileFast;
+//using HandlebarsDotNet.Extension.Logger;
 using HandlebarsDotNet.Helpers.BlockHelpers;
 using Xunit.Abstractions;
 
@@ -23,7 +23,7 @@ namespace HandlebarsDotNet.Test
         {
             Handlebars.Create(),
             Handlebars.Create(new HandlebarsConfiguration().Configure(o => o.Compatibility.RelaxedHelperNaming = true)),
-            Handlebars.Create(new HandlebarsConfiguration().UseCompileFast()),
+            //Handlebars.Create(new HandlebarsConfiguration().UseCompileFast()),
             Handlebars.Create(new HandlebarsConfiguration().UseWarmUp(types =>
             {
                 types.Add(typeof(Dictionary<string, object>));
@@ -552,6 +552,32 @@ false
         }
         
         [Theory, ClassData(typeof(HandlebarsEnvGenerator))]
+        public void BasicIntListEnumerator(IHandlebars handlebars)
+        {
+            var source = "{{#each enumerateMe}}{{this}} {{/each}}";
+            var template = handlebars.Compile(source);
+            var data = new
+            {
+                enumerateMe = new[] { 1, 2, 3 }
+            };
+            var result = template(data);
+            Assert.Equal("1 2 3 ", result);
+        }
+        
+        [Theory, ClassData(typeof(HandlebarsEnvGenerator))]
+        public void BasicIntEnumerableEnumerator(IHandlebars handlebars)
+        {
+            var source = "{{#each enumerateMe}}{{this}} {{/each}}";
+            var template = handlebars.Compile(source);
+            var data = new
+            {
+                enumerateMe = Enumerable.Range(1, 3)
+            };
+            var result = template(data);
+            Assert.Equal("1 2 3 ", result);
+        }
+        
+        [Theory, ClassData(typeof(HandlebarsEnvGenerator))]
         public void BasicObjectEnumeratorWithLast(IHandlebars handlebars)
         {
             var source = "{{#each enumerateMe}}{{@last}} {{/each}}";
@@ -671,6 +697,42 @@ false
             };
             var result = template(data);
             Assert.Equal("hello foo world bar ", result);
+        }
+        
+        [Theory, ClassData(typeof(HandlebarsEnvGenerator))]
+        public void DictionaryEnumeratorWithParentBlockParams(IHandlebars handlebars)
+        {
+            var source = "{{#each enumerateMe as |item val|}}{{#with this}}{{val}}:{{item.inner.a}} {{/with}}{{/each}}";
+            var template = handlebars.Compile(source);
+            var data = new
+            {
+                enumerateMe = new Dictionary<string, object>
+                {
+                    {
+                        "foo", new Dictionary<string, object>
+                        {
+                            ["inner"] = new Dictionary<string, object>
+                            {
+                                ["a"] = "1",
+                                ["b"] = "2"
+                            }
+                        }
+                    },
+                    {
+                        "bar", new Dictionary<string, object>
+                        {
+                            ["inner"] = new Dictionary<string, object>
+                            {
+                                ["a"] = "3",
+                                ["b"] = "4"
+                            }
+                        }
+                    }
+                }
+            };
+            
+            var result = template(data);
+            Assert.Equal("foo:1 bar:3 ", result);
         }
         
         [Theory, ClassData(typeof(HandlebarsEnvGenerator))]
@@ -1819,85 +1881,85 @@ false
             Assert.Equal(data.input.ToLower(), actual);
         }
         
-        [Fact]
-        public void BasicLog()
-        {
-            var logs = new List<string>();
-            var handlebars = Handlebars.Create();
-            handlebars.Configuration
-                .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
-            
-            var source = "{{log name}}";
-            var template = handlebars.Compile(source);
-            var data = new
-            {
-                name = "Handlebars.Net"
-            };
-            _ = template(data);
-            var log = Assert.Single(logs);
-            Assert.Equal("Handlebars.Net", log);
-        }
-        
-        [Fact]
-        public void BasicLogWithLevel()
-        {
-            var logs = new List<string>();
-            var handlebars = Handlebars.Create();
-            handlebars.Configuration
-                .UseLogger((arguments, level, format) => logs.Add($"Level: {level} -> {format(arguments)}"));
-            
-            var source = $"{{{{log name level='{LoggingLevel.Warn}'}}}}";
-            var template = handlebars.Compile(source);
-            var data = new
-            {
-                name = "Handlebars.Net"
-            };
-            _ = template(data);
-            var log = Assert.Single(logs);
-            Assert.Equal("Level: Warn -> Handlebars.Net", log);
-        }
-        
-        [Fact]
-        public void BasicLogWithFormat()
-        {
-            var logs = new List<string>();
-            var handlebars = Handlebars.Create();
-            handlebars.Configuration
-                .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
-            
-            var source = "{{log foo bar format='[0], [1]'}}";
-            var template = handlebars.Compile(source);
-            var data = new
-            {
-                foo = "foo",
-                bar = "bar"
-            };
-            _ = template(data);
-            
-            var log = Assert.Single(logs);
-            Assert.Equal("foo, bar", log);
-        }
-        
-        [Fact]
-        public void LogWithMultipleArguments()
-        {
-            var logs = new List<string>();
-            var handlebars = Handlebars.Create();
-            handlebars.Configuration
-                .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
-            
-            var source = "{{log foo bar}}";
-            var template = handlebars.Compile(source);
-            var data = new
-            {
-                foo = "foo",
-                bar = "bar"
-            };
-            _ = template(data);
-            
-            var log = Assert.Single(logs);
-            Assert.Equal("foo; bar", log);
-        }
+        // [Fact]
+        // public void BasicLog()
+        // {
+        //     var logs = new List<string>();
+        //     var handlebars = Handlebars.Create();
+        //     handlebars.Configuration
+        //         .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
+        //     
+        //     var source = "{{log name}}";
+        //     var template = handlebars.Compile(source);
+        //     var data = new
+        //     {
+        //         name = "Handlebars.Net"
+        //     };
+        //     _ = template(data);
+        //     var log = Assert.Single(logs);
+        //     Assert.Equal("Handlebars.Net", log);
+        // }
+        //
+        // [Fact]
+        // public void BasicLogWithLevel()
+        // {
+        //     var logs = new List<string>();
+        //     var handlebars = Handlebars.Create();
+        //     handlebars.Configuration
+        //         .UseLogger((arguments, level, format) => logs.Add($"Level: {level} -> {format(arguments)}"));
+        //     
+        //     var source = $"{{{{log name level='{LoggingLevel.Warn}'}}}}";
+        //     var template = handlebars.Compile(source);
+        //     var data = new
+        //     {
+        //         name = "Handlebars.Net"
+        //     };
+        //     _ = template(data);
+        //     var log = Assert.Single(logs);
+        //     Assert.Equal("Level: Warn -> Handlebars.Net", log);
+        // }
+        //
+        // [Fact]
+        // public void BasicLogWithFormat()
+        // {
+        //     var logs = new List<string>();
+        //     var handlebars = Handlebars.Create();
+        //     handlebars.Configuration
+        //         .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
+        //     
+        //     var source = "{{log foo bar format='[0], [1]'}}";
+        //     var template = handlebars.Compile(source);
+        //     var data = new
+        //     {
+        //         foo = "foo",
+        //         bar = "bar"
+        //     };
+        //     _ = template(data);
+        //     
+        //     var log = Assert.Single(logs);
+        //     Assert.Equal("foo, bar", log);
+        // }
+        //
+        // [Fact]
+        // public void LogWithMultipleArguments()
+        // {
+        //     var logs = new List<string>();
+        //     var handlebars = Handlebars.Create();
+        //     handlebars.Configuration
+        //         .UseLogger((arguments, level, format) => logs.Add(format(arguments)));
+        //     
+        //     var source = "{{log foo bar}}";
+        //     var template = handlebars.Compile(source);
+        //     var data = new
+        //     {
+        //         foo = "foo",
+        //         bar = "bar"
+        //     };
+        //     _ = template(data);
+        //     
+        //     var log = Assert.Single(logs);
+        //     Assert.Equal("foo; bar", log);
+        // }
         
         [Theory]
         [InlineData("[one].two")]

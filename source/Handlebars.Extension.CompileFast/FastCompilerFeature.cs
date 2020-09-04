@@ -16,7 +16,7 @@ namespace HandlebarsDotNet.Extension.CompileFast
         public void OnCompiling(ICompiledHandlebarsConfiguration configuration)
         {
             var templateFeature = configuration.Features.OfType<ClosureFeature>().SingleOrDefault();
-            configuration.ExpressionCompiler = new FastExpressionCompiler(configuration, templateFeature);
+            configuration.ExpressionCompilers.Add(new FastExpressionCompiler(configuration, templateFeature));
         }
 
         public void CompilationCompleted()

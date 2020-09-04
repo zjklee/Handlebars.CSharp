@@ -1,10 +1,10 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace HandlebarsDotNet
 {
-	internal sealed class EncodedTextWriter : TextWriter
+	public sealed class EncodedTextWriter : TextWriter
 	{
 		private static readonly EncodedTextWriterPool Pool = new EncodedTextWriterPool();
 		
@@ -17,7 +17,8 @@ namespace HandlebarsDotNet
 			
 		}
 
-		public static EncodedTextWriter From(TextWriter writer, ITextEncoder encoder)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static EncodedTextWriter From(TextWriter writer, ITextEncoder encoder)
 		{
 			if (writer is EncodedTextWriter encodedTextWriter) return encodedTextWriter;
 			
@@ -38,34 +39,45 @@ namespace HandlebarsDotNet
 			UnderlyingWriter.Write(value);
 		}
 
-		public override void Write(string value)
-		{
-			Write(value, true);
-		}
+		public override void Write(string value) => Write(value, true);
 
 		public override void Write(char value)
 		{
-			Write(value.ToString(), true);
+			if (_encoder.RequireEncoding(value))
+			{
+				Write(value.ToString(), true);
+				return;
+			}
+			
+			UnderlyingWriter.Write(value);
 		}
 
 		public override void Write(object value)
 		{
-			if (value == null)
+			switch (value)
 			{
-				return;
-			}
+				case null:
+					return;
+				
+				case ISafeString safeString:
+					Write(safeString.Value, false);
+					safeString.Dispose();
+					return;
+				
+				case string str when !string.IsNullOrEmpty(str):
+					Write(str, true);
+					return;
+				
+				case string _:
+					return;
 
-			if (value is ISafeString safeString)
-			{
-				Write(safeString.Value, false);
-				return;
+				default:
+					var s = value.ToString();
+					if(string.IsNullOrEmpty(s)) return;
+			
+					Write(s, true);
+					return;
 			}
-			
-			var @string = value as string ?? value.ToString();
-			if (value is IDisposable disposable) disposable.Dispose();
-			if(string.IsNullOrEmpty(@string)) return;
-			
-			Write(@string, true);
 		}
 
 		public TextWriter UnderlyingWriter { get; private set; }

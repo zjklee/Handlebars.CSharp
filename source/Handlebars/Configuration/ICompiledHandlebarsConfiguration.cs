@@ -14,78 +14,11 @@ namespace HandlebarsDotNet
     /// <summary>
     /// 
     /// </summary>
-    public interface IHandlebarsDecoratorConfiguration : IHandlebarsTemplateRegistrations
+    public interface ICompiledHandlebarsConfiguration
     {
-        /// <summary>
-        /// 
-        /// </summary>
-        ITextEncoder TextEncoder { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IFormatProvider FormatProvider { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        string UnresolvedBindingFormatter { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        bool ThrowOnUnresolvedBindingExpression { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IPartialTemplateResolver PartialTemplateResolver { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IMissingPartialTemplateHandler MissingPartialTemplateHandler { get; set; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IDictionary<PathInfo, Ref<HelperDescriptorBase>> Helpers { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IDictionary<PathInfo, Ref<BlockHelperDescriptorBase>> BlockHelpers { get; }
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        IList<IHelperResolver> HelperResolvers { get; }
-        
-        /// <inheritdoc cref="IPathInfoStore"/>
-        IPathInfoStore PathInfoStore { get; }
-    }
-    
-    /// <summary>
-    /// 
-    /// </summary>
-    public interface IHandlebarsTemplateRegistrations
-    {
-        /// <summary>
-        /// 
-        /// </summary>
         IDictionary<string, Action<TextWriter, object>> RegisteredTemplates { get; }
+
         ViewEngineFileSystem FileSystem { get; }
-    }
-    
-    /// <summary>
-    /// 
-    /// </summary>
-    public interface ICompiledHandlebarsConfiguration : IHandlebarsTemplateRegistrations
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        HandlebarsConfiguration UnderlingConfiguration { get; }
         
         /// <summary>
         /// 
@@ -152,7 +85,9 @@ namespace HandlebarsDotNet
         IList<IObjectDescriptorProvider> ObjectDescriptorProviders { get; }
 
         /// <inheritdoc cref="IExpressionCompiler"/>
-        IExpressionCompiler ExpressionCompiler { get; set; }
+        IList<IExpressionCompiler> ExpressionCompilers { get; set; }
+        
+        ICompiler Compiler { get; set; }
 
         /// <summary>
         /// List of associated <see cref="IFeature"/>s
@@ -161,5 +96,9 @@ namespace HandlebarsDotNet
         
         /// <inheritdoc cref="IPathInfoStore"/>
         IPathInfoStore PathInfoStore { get; }
+        
+        TemplateProperties TemplateProperties { get; }
+        
+        TemplateContext TemplateContext { get; }
     }
 }

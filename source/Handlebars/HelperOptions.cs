@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using HandlebarsDotNet.Compiler;
+using System.Runtime.CompilerServices;
 using HandlebarsDotNet.ValueProviders;
 
 namespace HandlebarsDotNet
@@ -14,11 +14,10 @@ namespace HandlebarsDotNet
         private static readonly InternalObjectPool<HelperOptions> Pool = new InternalObjectPool<HelperOptions>(new Policy());
         
         private readonly Dictionary<string, object> _extensions;
-        private IValueProvider _blockParams;
 
         internal static HelperOptions Create(Action<BindingContext, TextWriter, object> template,
             Action<BindingContext, TextWriter, object> inverse,
-            BlockParamsValues blockParamsValues,
+            BlockParamsVariables blockParamsVariables,
             BindingContext bindingContext)
         {
             var item = Pool.Get();
@@ -28,7 +27,7 @@ namespace HandlebarsDotNet
             
             item.BindingContext = bindingContext;
             item.Configuration = bindingContext.Configuration;
-            item._blockParams = blockParamsValues;
+            item.BlockParamsVariables = blockParamsVariables;
 
             return item;
         }
@@ -50,27 +49,25 @@ namespace HandlebarsDotNet
         /// </summary>
         public Action<TextWriter, object> Inverse { get; }
 
+        public BlockParamsVariables BlockParamsVariables { get; private set; }
+        
         internal ICompiledHandlebarsConfiguration Configuration { get; private set; }
         internal BindingContext BindingContext { get; private set; }
         internal Action<BindingContext, TextWriter, object> OriginalTemplate { get; private set; }
         internal Action<BindingContext, TextWriter, object> OriginalInverse { get; private set; }
-        
-        public IFrame CreateFrame(object value = null)
-        {
-            var frame = BindingContext.CreateChildContext(value);
-            
-            _blockParams.Attach(frame);
 
-            return frame;
-        }
-        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BindingContext CreateFrame(object value = null) => BindingContext.CreateChildContext(value);
+
         /// <summary>
         /// Provides access to dynamic data entries
         /// </summary>
         /// <param name="property"></param>
         public object this[string property]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _extensions.TryGetValue(property, out var value) ? value : null;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal set => _extensions[property] = value;
         }
 
@@ -80,8 +77,11 @@ namespace HandlebarsDotNet
         /// <param name="property"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public T GetValue<T>(string property) => (T) this[property];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T GetValue<T>(string property) where T : class => 
+            (_extensions.TryGetValue(property, out var value) ? value : null) as T;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose() => Pool.Return(this);
 
         private class Policy : IInternalObjectPoolPolicy<HelperOptions>
@@ -91,13 +91,7 @@ namespace HandlebarsDotNet
             public bool Return(HelperOptions item)
             {
                 item._extensions.Clear();
-
-                item.Configuration = null;
-                item.BindingContext = null;
-                item._blockParams = null;
-                item.OriginalInverse = null;
-                item.OriginalTemplate = null;
-
+                
                 return true;
             }
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using HandlebarsDotNet.Compiler;
+using HandlebarsDotNet;
 using HandlebarsDotNet.Helpers;
 using HandlebarsDotNet.Helpers.BlockHelpers;
 
@@ -13,7 +14,7 @@ namespace HandlebarsDotNet
     /// <param name="templatePath"></param>
     public delegate TextReader ViewReaderFactory(ICompiledHandlebarsConfiguration configuration, string templatePath);
     
-    internal class HandlebarsEnvironment : IHandlebars, ICompiledHandlebars
+    internal class HandlebarsEnvironment : IHandlebars
     {
         private static readonly ViewReaderFactory ViewReaderFactory = (configuration, path) =>
         {
@@ -32,14 +33,7 @@ namespace HandlebarsDotNet
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
         
-        internal HandlebarsEnvironment(ICompiledHandlebarsConfiguration configuration)
-        {
-            CompiledConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        }
-        
         public HandlebarsConfiguration Configuration { get; }
-        internal ICompiledHandlebarsConfiguration CompiledConfiguration { get; }
-        ICompiledHandlebarsConfiguration ICompiledHandlebars.CompiledConfiguration => CompiledConfiguration;
 
         public Action<TextWriter, object> CompileView(string templatePath, ViewReaderFactory readerFactoryFactory)
         {
@@ -52,7 +46,7 @@ namespace HandlebarsDotNet
             var view = CompileViewInternal(templatePath, ViewReaderFactory);
             return (vm) =>
             {
-                var formatProvider = Configuration?.FormatProvider ?? CompiledConfiguration.FormatProvider;
+                var formatProvider = Configuration.FormatProvider;
                 using var writer = ReusableStringWriter.Get(formatProvider);
                 view(writer, vm);
                 return writer.ToString();
@@ -61,14 +55,15 @@ namespace HandlebarsDotNet
 
         private Action<TextWriter, object> CompileViewInternal(string templatePath, ViewReaderFactory readerFactoryFactory)
         {
-            var configuration = CompiledConfiguration ?? new HandlebarsConfigurationAdapter(Configuration);
+            var configuration = new HandlebarsConfigurationAdapter(Configuration);
+            configuration.TemplateProperties.TemplatePath = templatePath;
             var createdFeatures = configuration.Features;
             for (var index = 0; index < createdFeatures.Count; index++)
             {
                 createdFeatures[index].OnCompiling(configuration);
             }
             
-            var compiledView = HandlebarsCompiler.CompileView(readerFactoryFactory, templatePath, configuration);
+            var compiledView = HandlebarsCompiler.CompileView(readerFactoryFactory, configuration);
     
             for (var index = 0; index < createdFeatures.Count; index++)
             {
@@ -80,9 +75,23 @@ namespace HandlebarsDotNet
 
         public Action<TextWriter, object> Compile(TextReader template)
         {
-            var configuration = CompiledConfiguration ?? new HandlebarsConfigurationAdapter(Configuration);
+            var configuration = new HandlebarsConfigurationAdapter(Configuration);
             using var reader = new ExtendedStringReader(template);
-            return HandlebarsCompiler.Compile(reader, configuration);
+            
+            var createdFeatures = configuration.Features;
+            for (var index = 0; index < createdFeatures.Count; index++)
+            {
+                createdFeatures[index].OnCompiling(configuration);
+            }
+            
+            var compiledTemplate = HandlebarsCompiler.Compile(reader, configuration);
+            
+            for (var index = 0; index < createdFeatures.Count; index++)
+            {
+                createdFeatures[index].CompilationCompleted();
+            }
+
+            return compiledTemplate;
         }
 
         public Func<object, string> Compile(string template)
@@ -92,7 +101,7 @@ namespace HandlebarsDotNet
                 var compiledTemplate = Compile(reader);
                 return context =>
                 {
-                    var formatProvider = Configuration?.FormatProvider ?? CompiledConfiguration?.FormatProvider;
+                    var formatProvider = Configuration.FormatProvider;
                     using var writer = ReusableStringWriter.Get(formatProvider);
                     compiledTemplate(writer, context);
                     return writer.ToString();
@@ -102,8 +111,7 @@ namespace HandlebarsDotNet
 
         public void RegisterTemplate(string templateName, Action<TextWriter, object> template)
         {
-            var registrations = Configuration ?? (IHandlebarsTemplateRegistrations) CompiledConfiguration;
-            registrations.RegisteredTemplates[templateName] = template;
+            Configuration.RegisteredTemplates[templateName] = template;
         }
 
         public void RegisterTemplate(string templateName, string template)

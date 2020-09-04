@@ -1,11 +1,14 @@
 using System.IO;
 using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet;
 
 namespace HandlebarsDotNet.Helpers.BlockHelpers
 {
     public abstract class BlockHelperDescriptorBase : IHelperDescriptor
     {
-        protected BlockHelperDescriptorBase(string name) => Name = PathResolver.GetPathInfo(name);
+        protected BlockHelperDescriptorBase(string name) : this(TemplateContext.Shared.PathInfoStore.GetOrAdd(name))
+        {
+        }
 
         protected BlockHelperDescriptorBase(PathInfo name) => Name = name;
 

@@ -100,7 +100,7 @@ namespace HandlebarsDotNet.Features
             {
                 var helper = _helper ?? new MissingHelperDescriptor();
                 configuration.Helpers.AddOrUpdate(helperMissingPathInfo, 
-                    h => h.AsRef(), 
+                    Ref.Create, 
                     (h, o) => o.Value = h, 
                     helper);
             }
@@ -110,7 +110,7 @@ namespace HandlebarsDotNet.Features
             {
                 var blockHelper = _blockHelper ?? new MissingBlockHelperDescriptor();
                 configuration.BlockHelpers.AddOrUpdate(blockHelperMissingKeyPathInfo, 
-                    h => h.AsRef(), 
+                    Ref.Create, 
                     (h, o) => o.Value = h, 
                     blockHelper);
             }

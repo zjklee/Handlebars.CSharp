@@ -28,8 +28,7 @@ namespace HandlebarsDotNet.Compiler
             
             var helperName = pathInfo.TrimmedPath;
             var bindingContext = Arg<BindingContext>(CompilationContext.BindingContext);
-            var contextValue = bindingContext.Property(o => o.Value);
-            var textWriter = bindingContext.Property(o => o.TextWriter);
+            var textWriter = bindingContext.Member(o => o.TextWriter);
             var arguments = hex.Arguments
                 .ApplyOn<Expression, PathExpression>(path => path.Context = PathExpression.ResolutionContext.Parameter)
                 .Select(o => FunctionBuilder.Reduce(o, CompilationContext));
@@ -39,7 +38,7 @@ namespace HandlebarsDotNet.Compiler
             var configuration = CompilationContext.Configuration;
             if (configuration.Helpers.TryGetValue(pathInfo, out var helper))
             {
-                return Call(() => helper.Value.WriteInvoke(bindingContext, textWriter, contextValue, args));
+                return Call(() => helper.Value.WriteInvoke(bindingContext, textWriter, args));
             }
             
             for (var index = 0; index < configuration.HelperResolvers.Count; index++)
@@ -47,14 +46,14 @@ namespace HandlebarsDotNet.Compiler
                 var resolver = configuration.HelperResolvers[index];
                 if (resolver.TryResolveHelper(helperName, typeof(object), out var resolvedHelper))
                 {
-                    return Call(() => resolvedHelper.WriteInvoke(bindingContext, textWriter, contextValue, args));
+                    return Call(() => resolvedHelper.WriteInvoke(bindingContext, textWriter, args));
                 }
             }
 
-            var lateBindDescriptor = new LateBindHelperDescriptor(pathInfo, configuration).AsRef<HelperDescriptorBase>();
+            var lateBindDescriptor = new Ref<HelperDescriptorBase>(new LateBindHelperDescriptor(pathInfo, configuration));
             configuration.Helpers.Add(pathInfo, lateBindDescriptor);
             
-            return Call(() => lateBindDescriptor.Value.WriteInvoke(bindingContext, textWriter, contextValue, args));
+            return Call(() => lateBindDescriptor.Value.WriteInvoke(bindingContext, textWriter, args));
         }
     }
 }

@@ -1,6 +1,6 @@
 using System.IO;
-using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet;
 
 namespace HandlebarsDotNet.Helpers
 {
@@ -13,7 +13,10 @@ namespace HandlebarsDotNet.Helpers
         /// 
         /// </summary>
         /// <param name="name"></param>
-        protected HelperDescriptorBase(string name) => Name = PathResolver.GetPathInfo(name);
+        protected HelperDescriptorBase(string name) : this(TemplateContext.Shared.PathInfoStore.GetOrAdd(name))
+        {
+            
+        }
 
         /// <summary>
         /// 
@@ -24,9 +27,9 @@ namespace HandlebarsDotNet.Helpers
         public PathInfo Name { get; }
         public abstract HelperType Type { get; }
 
-        internal abstract object ReturnInvoke(BindingContext bindingContext, object context, object[] arguments);
+        internal abstract object ReturnInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments);
 
-        internal abstract void WriteInvoke(BindingContext bindingContext, TextWriter output, object context, object[] arguments);
+        internal abstract void WriteInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments);
         
         /// <summary>
         /// Returns helper name

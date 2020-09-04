@@ -110,10 +110,5 @@ namespace HandlebarsDotNet
         /// <param name="helperObject"></param>
         void RegisterHelper(ReturnHelperDescriptor helperObject);
     }
-    
-    internal interface ICompiledHandlebars
-    {
-        ICompiledHandlebarsConfiguration CompiledConfiguration { get; }
-    }
 }
 

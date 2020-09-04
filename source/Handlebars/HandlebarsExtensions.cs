@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace HandlebarsDotNet
 {
@@ -15,7 +16,7 @@ namespace HandlebarsDotNet
         /// <param name="value"></param>
         public static void WriteSafeString(this TextWriter writer, string value)
         {
-            writer.Write(new SafeString(value));
+            writer.Write(SafeString.Create(value));
         }
 
         /// <summary>
@@ -25,13 +26,22 @@ namespace HandlebarsDotNet
         /// <param name="value"></param>
         public static void WriteSafeString(this TextWriter writer, object value)
         {
-            if (value is string str)
+            switch (value)
             {
-                writer.Write(new SafeString(str));
-                return;
+                case null:
+                    return;
+                    
+                case string v when string.IsNullOrEmpty(v):
+                    return;
+                
+                case string v:
+                    writer.Write(SafeString.Create(v));
+                    return;
+
+                default:
+                    writer.Write(SafeString.Create(value.ToString()));
+                    return;
             }
-            
-            writer.Write(new SafeString(value.ToString()));
         }
         
         /// <summary>
@@ -65,7 +75,7 @@ namespace HandlebarsDotNet
     /// <summary>
     /// 
     /// </summary>
-    public interface ISafeString
+    public interface ISafeString : IDisposable
     {
         /// <summary>
         /// 
@@ -76,29 +86,47 @@ namespace HandlebarsDotNet
     /// <summary>
     /// 
     /// </summary>
-    public class SafeString : ISafeString
+    internal sealed class SafeString : ISafeString
     {
+        private static readonly InternalObjectPool<SafeString> Pool = new InternalObjectPool<SafeString>(new Policy());
+        
         /// <summary>
         /// 
         /// </summary>
-        public string Value { get; }
-            
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="value"></param>
-        public SafeString(string value)
+        public string Value { get; private set; }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static SafeString Create(string value)
         {
-            Value = value;
+            var safeString = Pool.Get();
+            safeString.Value = value;
+            return safeString;
+        }
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        private SafeString()
+        {
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
+        public override string ToString() => Value;
+        
+        public void Dispose() => Pool.Return(this);
+        
+        private class Policy : IInternalObjectPoolPolicy<SafeString>
         {
-            return Value;
+            public SafeString Create() => new SafeString();
+
+            public bool Return(SafeString item)
+            {
+                //item.Value = null;
+                return true;
+            }
         }
     }
 }

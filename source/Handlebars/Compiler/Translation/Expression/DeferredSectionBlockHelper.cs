@@ -7,7 +7,7 @@ namespace HandlebarsDotNet.Compiler
 {
     internal static class DeferredSectionBlockHelper
     {
-        private static readonly BlockParamsValues BlockParamsValues = BlockParamsValues.Empty;
+        private static readonly BlockParamsVariables BlockParamsValues = new BlockParamsVariables(null, null);
 
         public static void PlainHelper(BindingContext context, object value,
             Action<BindingContext, TextWriter, object> body, Action<BindingContext, TextWriter, object> inverse)

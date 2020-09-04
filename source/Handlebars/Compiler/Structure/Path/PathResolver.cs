@@ -1,59 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using HandlebarsDotNet.Polyfills;
+using HandlebarsDotNet.ObjectDescriptors;
 
 namespace HandlebarsDotNet.Compiler.Structure.Path
 {
     internal static class PathResolver
     {
-        public static PathInfo GetPathInfo(string path)
-        {
-            if (path == "null")
-                return new PathInfo(false, path, false, null);
-
-            var originalPath = path;
-
-            var isValidHelperLiteral = true;
-            var isVariable = path.StartsWith("@");
-            var isInversion = path.StartsWith("^");
-            var isBlockHelper = path.StartsWith("#");
-            if (isVariable || isBlockHelper || isInversion)
-            {
-                isValidHelperLiteral = isBlockHelper || isInversion;
-                path = path.Substring(1);
-            }
-
-            var segments = new List<PathSegment>();
-            var pathParts = path.Split('/');
-            if (pathParts.Length > 1) isValidHelperLiteral = false;
-            foreach (var segment in pathParts)
-            {
-                if (segment == "..")
-                {
-                    isValidHelperLiteral = false;
-                    segments.Add(new PathSegment(segment, ArrayEx.Empty<ChainSegment>()));
-                    continue;
-                }
-
-                if (segment == ".")
-                {
-                    isValidHelperLiteral = false;
-                    segments.Add(new PathSegment(segment, ArrayEx.Empty<ChainSegment>()));
-                    continue;
-                }
-
-                var segmentString = isVariable ? "@" + segment : segment;
-                var chainSegments = GetPathChain(segmentString).ToArray();
-                if (chainSegments.Length > 1) isValidHelperLiteral = false;
-
-                segments.Add(new PathSegment(segmentString, chainSegments));
-            }
-
-            return new PathInfo(true, originalPath, isValidHelperLiteral, segments.ToArray());
-        }
-        
         public static object ResolvePath(BindingContext context, PathInfo pathInfo)
         {
             if (!pathInfo.HasValue) return null;
@@ -78,7 +29,7 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
             }
 
             if (pathInfo.IsPureThis) return instance;
-            
+
             var hashParameters = instance as HashParameterDictionary;
             
             var pathChain = pathInfo.PathChain;
@@ -112,48 +63,19 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
                 
                 return instance;
             }
-
+            
             return instance;
         }
-
-        private static IEnumerable<ChainSegment> GetPathChain(string segmentString)
+        
+        public static object ResolveValue(BindingContext context, object instance, ChainSegment chainSegment)
         {
-            var insideEscapeBlock = false;
-            var pathChainParts = segmentString.Split(new[] {'.'}, StringSplitOptions.RemoveEmptyEntries);
-            if (pathChainParts.Length == 0 && segmentString == ".") return new[] {ChainSegment.Create("this")};
-
-            var pathChain = pathChainParts.Aggregate(new List<ChainSegment>(), (list, next) =>
+            if (instance == null)
             {
-                if (insideEscapeBlock)
-                {
-                    if (next.EndsWith("]"))
-                    {
-                        insideEscapeBlock = false;
-                    }
-
-                    list[list.Count - 1] = ChainSegment.Create($"{list[list.Count - 1]}.{next}");
-                    return list;
-                }
-
-                if (next.StartsWith("["))
-                {
-                    insideEscapeBlock = true;
-                }
-
-                if (next.EndsWith("]"))
-                {
-                    insideEscapeBlock = false;
-                }
-
-                list.Add(ChainSegment.Create(next));
-                return list;
-            });
-
-            return pathChain;
-        }
-
-        private static object ResolveValue(BindingContext context, object instance, ChainSegment chainSegment)
-        {
+                return chainSegment.GetUndefinedBindingResult(context.Configuration);
+            }
+            
+            if (chainSegment.IsThis && !chainSegment.IsVariable) return instance;
+            
             object resolvedValue;
             if (chainSegment.IsVariable)
             {
@@ -161,18 +83,21 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
                     ? resolvedValue
                     : chainSegment.GetUndefinedBindingResult(context.Configuration);
             }
-
-            if (chainSegment.IsThis) return instance;
-
+            
             if (context.TryGetVariable(chainSegment, out resolvedValue)
                 || TryAccessMember(instance, chainSegment, context.Configuration, out resolvedValue))
             {
                 return resolvedValue;
             }
             
-            if (chainSegment.IsValue && context.TryGetContextVariable(chainSegment, out resolvedValue))
+            if (chainSegment.Equals("value"))
             {
-                return resolvedValue;
+                if (context.TryGetContextVariable(chainSegment, out resolvedValue))
+                {
+                    return resolvedValue;
+                }
+                
+                return context.Value;
             }
 
             return chainSegment.GetUndefinedBindingResult(context.Configuration);
@@ -186,16 +111,16 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
                 return false;
             }
 
-            var instanceType = instance.GetType();
+            var typeDescriptor = TypeDescriptor.Create(instance, configuration);
             chainSegment = ResolveMemberName(instance, chainSegment, configuration);
 
-            if (!configuration.ObjectDescriptorProvider.TryGetDescriptor(instanceType, out var descriptor))
+            if (!typeDescriptor.TryGetObjectDescriptor(out var descriptor))
             {
                 value = chainSegment.GetUndefinedBindingResult(configuration);
                 return false;
             }
 
-            return descriptor.MemberAccessor.TryGetValue(instance, instanceType, chainSegment, out value);
+            return descriptor.MemberAccessor.TryGetValue(instance, typeDescriptor.Type, chainSegment, out value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

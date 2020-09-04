@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Linq.Expressions;
-using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet.Polyfills;
 
 namespace HandlebarsDotNet.Compiler
 {
@@ -9,37 +9,25 @@ namespace HandlebarsDotNet.Compiler
     {
         public new static BlockParamsExpression Empty() => new BlockParamsExpression(null);
 
-        public readonly BlockParam BlockParam;
+        public readonly string[] BlockParams;
         
-        private BlockParamsExpression(BlockParam blockParam)
+        private BlockParamsExpression(string[] blockParam)
         {
-            BlockParam = blockParam;
+            BlockParams = blockParam ?? ArrayEx.Empty<string>();
         }
         
         public BlockParamsExpression(string action, string blockParams)
-            :this(new BlockParam
-            {
-                Action = action,
-                Parameters = blockParams.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(ChainSegment.Create)
-                    .ToArray()
-            })
+            :this(blockParams.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries).ToArray())
         {
         }
 
         public override ExpressionType NodeType { get; } = (ExpressionType)HandlebarsExpressionType.BlockParamsExpression;
 
-        public override Type Type { get; } = typeof(BlockParam);
+        public override Type Type { get; } = typeof(string[]);
 
         protected override Expression Accept(ExpressionVisitor visitor)
         {
-            return visitor.Visit(Constant(BlockParam, typeof(BlockParam)));
+            return visitor.Visit(Constant(BlockParams, typeof(string[])));
         }
-    }
-
-    internal class BlockParam
-    {
-        public string Action { get; set; }
-        public ChainSegment[] Parameters { get; set; }
     }
 }

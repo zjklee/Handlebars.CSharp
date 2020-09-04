@@ -64,6 +64,8 @@ namespace HandlebarsDotNet.Test
             {
                 return value != null ? JsonConvert.ToString(value, '"').Trim('"') : String.Empty;
             }
+
+            public bool RequireEncoding(char c) => true;
         }
 
 

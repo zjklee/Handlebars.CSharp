@@ -17,7 +17,7 @@ namespace HandlebarsDotNet.Helpers
             _helper = helper;
         }
 
-        public override void Invoke(TextWriter output, object context, params object[] arguments)
+        protected override void Invoke(TextWriter output, object context, params object[] arguments)
         {
             _helper(output, context, arguments);
         }

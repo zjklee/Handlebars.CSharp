@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using HandlebarsDotNet.Adapters;
-using HandlebarsDotNet.Compiler.Structure.Path;
 using HandlebarsDotNet.MemberAccessors;
 using HandlebarsDotNet.Polyfills;
 
@@ -34,29 +32,6 @@ namespace HandlebarsDotNet.ObjectDescriptors
         private static ObjectDescriptor CreateDescriptor<T, TV>()
         {
             return new ObjectDescriptor(typeof(KeyValuePair<T, TV>), new KeyValuePairAccessor<T, TV>(), GetProperties);
-        }
-        
-        private class KeyValuePairAccessor<T, TV> : IMemberAccessor
-        {
-            public bool TryGetValue(object instance, Type instanceType, ChainSegment memberName, out object value)
-            {
-                var keyValuePair = (KeyValuePair<T, TV>) instance;
-
-                if (memberName.IsKey)
-                {
-                    value = keyValuePair.Key;
-                    return true;
-                }
-                
-                if (memberName.IsValue)
-                {
-                    value = keyValuePair.Value;
-                    return true;
-                }
-                
-                value = default(TV);
-                return false;
-            }
         }
     }
 }

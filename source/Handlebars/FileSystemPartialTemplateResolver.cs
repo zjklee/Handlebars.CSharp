@@ -1,41 +1,41 @@
 ﻿using System;
+using System.IO;
+using HandlebarsDotNet.Compiler;
 
 namespace HandlebarsDotNet
 {
     /// <inheritdoc />
     public class FileSystemPartialTemplateResolver : IPartialTemplateResolver
     {
-        /// <inheritdoc />
-        public bool TryRegisterPartial(IHandlebars env, string partialName, string templatePath)
+        public bool TryResolvePartial(ICompiledHandlebarsConfiguration configuration, string partialName, out Action<TextWriter, object> partial)
         {
-            if (env == null)
+            var templatePath = configuration.TemplateProperties.TemplatePath;
+            if (configuration.FileSystem == null || templatePath == null || partialName == null)
             {
-                throw new ArgumentNullException(nameof(env));
-            }
-
-            var handlebarsTemplateRegistrations = env.Configuration as IHandlebarsTemplateRegistrations ?? env.As<ICompiledHandlebars>().CompiledConfiguration;
-            if (handlebarsTemplateRegistrations?.FileSystem == null || templatePath == null || partialName == null)
-            {
+                partial = null;
                 return false;
             }
 
-            var partialPath = handlebarsTemplateRegistrations.FileSystem.Closest(templatePath,
-                "partials/" + partialName + ".hbs");
+            var partialPath = configuration.FileSystem.Closest(templatePath, "partials/" + partialName + ".hbs");
 
             if (partialPath != null)
             {
-                var compiled = env
-                    .CompileView(partialPath);
-
-                handlebarsTemplateRegistrations.RegisteredTemplates.Add(partialName, (writer, o) =>
+                partial = HandlebarsCompiler.CompileView((handlebarsConfiguration, path) =>
                 {
-                    writer.Write(compiled(o));
-                });
+                    var fs = configuration.FileSystem;
+                    if (fs == null) throw new InvalidOperationException("Cannot compile view when configuration.FileSystem is not set");
+                    
+                    var template = fs.GetFileContent(path);
+                    if (template == null) throw new InvalidOperationException("Cannot find template at '" + path + "'");
 
+                    return new StringReader(template);
+                }, configuration);
+                
                 return true;
             }
 
             // Failed to find partial in filesystem
+            partial = null;
             return false;
         }
     }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using BenchmarkDotNet.Attributes;
 using HandlebarsDotNet;
-using HandlebarsDotNet.Extension.CompileFast;
+//using HandlebarsDotNet.Extension.CompileFast;
 using Newtonsoft.Json.Linq;
 
 namespace HandlebarsNet.Benchmark
@@ -81,21 +81,21 @@ namespace HandlebarsNet.Benchmark
                 pure.RegisterHelper("pow4", (output, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
             }
             
-            {
-                var fast = Handlebars.Create();
-                fast.RegisterHelper("pow1", (context, arguments) => (int)arguments[0] * (int) arguments[0]);
-                fast.RegisterHelper("pow2", (output, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
-                fast.RegisterHelper("pow5", (output, options, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
-                fast.Configuration.UseCompileFast();
-
-                using (var reader = new StringReader(template))
-                {
-                    _fast = fast.Compile(reader);
-                }
-                
-                fast.RegisterHelper("pow3", (context, arguments) => (int)arguments[0] * (int) arguments[0]);
-                fast.RegisterHelper("pow4", (output, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
-            }
+            // {
+            //     var fast = Handlebars.Create();
+            //     fast.RegisterHelper("pow1", (context, arguments) => (int)arguments[0] * (int) arguments[0]);
+            //     fast.RegisterHelper("pow2", (output, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
+            //     fast.RegisterHelper("pow5", (output, options, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
+            //     fast.Configuration.UseCompileFast();
+            //
+            //     using (var reader = new StringReader(template))
+            //     {
+            //         _fast = fast.Compile(reader);
+            //     }
+            //     
+            //     fast.RegisterHelper("pow3", (context, arguments) => (int)arguments[0] * (int) arguments[0]);
+            //     fast.RegisterHelper("pow4", (output, context, arguments) => output.WriteSafeString(((int)arguments[0] * (int) arguments[0]).ToString()));
+            // }
             
             List<object> ObjectLevel1Generator()
             {
@@ -189,18 +189,19 @@ namespace HandlebarsNet.Benchmark
         [Benchmark]
         public void Default()
         {
-            _pure(TextWriter.Null, _data);
+             var textWriter = TextWriter.Null;
+            //var textWriter = new StringWriter();
+            _pure(textWriter, _data);
+            //var s = textWriter.ToString();
         }
 
-        [Benchmark]
-        public void Fast()
-        {
-            _fast(TextWriter.Null, _data);
-        }
+        // [Benchmark]
+        // public void Fast()
+        // {
+        //     _fast(TextWriter.Null, _data);
+        // }
 
-        public void Dispose()
-        {
-            Handlebars.Cleanup();
-        }
+        //[GlobalCleanup]
+        public void Dispose() => Handlebars.Cleanup();
     }
 }

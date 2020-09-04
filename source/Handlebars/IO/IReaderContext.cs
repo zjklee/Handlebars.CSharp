@@ -1,6 +1,6 @@
 namespace HandlebarsDotNet
 {
-    internal interface IReaderContext
+    public interface IReaderContext
     {
         int LineNumber { get; set; }
         int CharNumber { get; set; }

@@ -1,10 +1,25 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using HandlebarsDotNet.Compiler.Structure.Path;
 using HandlebarsDotNet.MemberAccessors;
 
 namespace HandlebarsDotNet.ObjectDescriptors
 {
+    public class ObjectDescriptor<T> : ObjectDescriptor
+    {
+        public ObjectDescriptor(
+            IMemberAccessor memberAccessor, 
+            Func<ObjectDescriptor, HandlebarsDotNet.Iterators.Iterator> iterator, 
+            Func<ObjectDescriptor<T>, T, IEnumerable> getProperties) 
+            : base(typeof(T), 
+                memberAccessor, 
+                iterator, 
+                (descriptor, o) => getProperties((ObjectDescriptor<T>) descriptor, (T) o))
+        {
+        }
+    }
+
     /// <summary>
     /// Provides meta-information about <see cref="Type"/>
     /// </summary>
@@ -28,15 +43,13 @@ namespace HandlebarsDotNet.ObjectDescriptors
         public ObjectDescriptor(
             Type describedType, 
             IMemberAccessor memberAccessor,
-            Func<ObjectDescriptor, object, IEnumerable<object>> getProperties,
-            bool shouldEnumerate = false,
+            Func<ObjectDescriptor, object, IEnumerable> getProperties,
             params object[] dependencies
         )
         {
             DescribedType = describedType;
             GetProperties = getProperties;
             MemberAccessor = memberAccessor;
-            ShouldEnumerate = shouldEnumerate;
             Dependencies = dependencies;
 
             _isNotEmpty = true;
@@ -47,33 +60,46 @@ namespace HandlebarsDotNet.ObjectDescriptors
         /// </summary>
         /// <param name="describedType">Returns type described by this instance of <see cref="ObjectDescriptor"/></param>
         /// <param name="memberAccessor"><see cref="IMemberAccessor"/> associated with the <see cref="ObjectDescriptor"/></param>
-        /// <param name="getEnumerator">
+        /// <param name="getProperties"></param>
+        /// <param name="iterator">
         /// Factory enabling receiving properties of specific instance.
         /// <para>Known behavior is to return <c>object</c> for Array-like enumeration or return <c>KeyValuePair{string,object}</c> for object-like enumeration</para>
         /// </param>
+        /// <param name="shouldEnumerate"></param>
         /// <param name="dependencies"></param>
         public ObjectDescriptor(
             Type describedType, 
             IMemberAccessor memberAccessor,
-            Func<ObjectDescriptor, object, IEnumerable> getEnumerator,
+            Func<ObjectDescriptor, HandlebarsDotNet.Iterators.Iterator> iterator,
+            Func<ObjectDescriptor, object, IEnumerable> getProperties,
             params object[] dependencies
         )
         {
             DescribedType = describedType;
-            GetEnumerator = getEnumerator;
             MemberAccessor = memberAccessor;
-            ShouldEnumerate = false;
+            GetProperties = getProperties;
             Dependencies = dependencies;
+            Iterator = iterator(this);
+
+            _isNotEmpty = true;
+        }
+        
+        public ObjectDescriptor(
+            Type describedType, 
+            IMemberAccessor memberAccessor,
+            Func<ObjectDescriptor, HandlebarsDotNet.Iterators.Iterator> iterator,
+            Func<ObjectDescriptor, object, IEnumerable> getProperties
+        )
+        {
+            DescribedType = describedType;
+            MemberAccessor = memberAccessor;
+            Iterator = iterator(this);
+            GetProperties = getProperties;
 
             _isNotEmpty = true;
         }
 
         private ObjectDescriptor(){ }
-
-        /// <summary>
-        /// Specifies whether the type should be treated as <see cref="System.Collections.IEnumerable"/>
-        /// </summary>
-        public readonly bool ShouldEnumerate;
         
         /// <summary>
         /// Contains dependencies for <see cref="GetProperties"/> delegate
@@ -88,18 +114,21 @@ namespace HandlebarsDotNet.ObjectDescriptors
         /// <summary>
         /// Factory enabling receiving properties of specific instance   
         /// </summary>
-        public readonly Func<ObjectDescriptor, object, IEnumerable<object>> GetProperties;
-        
-        /// <summary>
-        /// Factory enabling receiving properties of specific instance   
-        /// </summary>
-        public readonly Func<ObjectDescriptor, object, IEnumerable> GetEnumerator;
-        
+        public readonly Func<ObjectDescriptor, object, IEnumerable> GetProperties;
+
         /// <summary>
         /// <see cref="IMemberAccessor"/> associated with the <see cref="ObjectDescriptor"/>
         /// </summary>
         public readonly IMemberAccessor MemberAccessor;
 
+        public readonly HandlebarsDotNet.Iterators.Iterator Iterator;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public object AccessMember(object instance, ChainSegment segment)
+        {
+            return MemberAccessor.TryGetValue(instance, DescribedType, segment, out var value) ? value : null;
+        }
+        
         /// <inheritdoc />
         public bool Equals(ObjectDescriptor other)
         {

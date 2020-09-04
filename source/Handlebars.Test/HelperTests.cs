@@ -4,10 +4,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Compiler.Structure.Path;
 using HandlebarsDotNet.Features;
 using HandlebarsDotNet.Helpers.BlockHelpers;
+using HandlebarsDotNet.ValueProviders;
 
 namespace HandlebarsDotNet.Test
 {
@@ -79,13 +79,13 @@ namespace HandlebarsDotNet.Test
             var handlebars = Handlebars.Create();
             handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
             {
-                var count = new Ref<int>(0);
+                var count = 0;
                 using var frame = options.CreateFrame();
-                frame.BlockParams[0] = count;
+                var blockParamsValues = new BlockParamsValues(frame);
 
                 foreach (var arg in args)
                 {
-                    ++count.Value;
+                    blockParamsValues[options.BlockParamsVariables[0]] = ++count;
                     frame.Value = arg;
                     options.Template(writer, frame);
                 }
@@ -113,13 +113,13 @@ namespace HandlebarsDotNet.Test
             
             handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
             {
-                var count = new Ref<int>(0);
+                var count = 0;
                 using var frame = options.CreateFrame();
-                frame.BlockParams[0] = count;
+                var blockParamsValues = new BlockParamsValues(frame);
 
                 foreach (var arg in args)
                 {
-                    ++count.Value;
+                    blockParamsValues[options.BlockParamsVariables[0]] = ++count;
                     frame.Value = arg;
                     options.Template(writer, frame);
                 }
@@ -145,13 +145,13 @@ namespace HandlebarsDotNet.Test
 
             Handlebars.RegisterHelper("myHelper", (writer, options, context, args) =>
             {
-                var count = new Ref<int>(0);
+                var count = 0;
                 using var frame = options.CreateFrame();
-                frame.BlockParams[0] = count;
+                var blockParamsValues = new BlockParamsValues(frame);
 
                 foreach (var arg in args)
                 {
-                    count.Value++;
+                    blockParamsValues[options.BlockParamsVariables[0]] = ++count;
                     frame.Value = arg;
                     options.Template(writer, frame);
                 }
@@ -856,37 +856,33 @@ namespace HandlebarsDotNet.Test
         {
             var handlebars = Handlebars.Create();
             
-            handlebars.RegisterHelper(new CustomEachBlockHelper());
+            handlebars.RegisterHelper(new CustomSimpleEachBlockHelper());
 
-            var template = handlebars.Compile("{{#customEach this}}{{@value}}'s index is {{@index}} {{/customEach}}");
+            var template = handlebars.Compile("{{#customSimpleEach this}}{{@value}}'s index is {{@index}} {{/customSimpleEach}}");
 
             var result = template(new[] { "one", "two" });
             
             Assert.Equal("one's index is 0 two's index is 1 ", result);
         }
         
-        private class CustomEachBlockHelper : BlockHelperDescriptor
+        private class CustomSimpleEachBlockHelper : BlockHelperDescriptor
         {
-            public CustomEachBlockHelper() : base("customEach")
+            public CustomSimpleEachBlockHelper() : base("customSimpleEach")
             {
             }
 
             public override void Invoke(TextWriter output, HelperOptions options, object context, params object[] arguments)
             {
-                var index = new Ref<int>(0);
-                var value = new Ref<object>(null);
-
                 using var frame = options.CreateFrame();
-                frame.Data[ChainSegment.Index] = index;
-                frame.Data[ChainSegment.Value] = value;
-                
+                var iterator = new IteratorValueProvider(frame);
+
+                var index = 0;
                 foreach (var item in (IEnumerable) arguments[0])
                 {
-                    value.Value = frame.Value = item;
+                    iterator[ChainSegment.Index] = index++;
+                    iterator[ChainSegment.Value] = frame.Value = item;
 
                     options.Template(output, frame);
-                    
-                    ++index.Value;
                 }
             }
         }

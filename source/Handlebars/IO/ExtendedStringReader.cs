@@ -3,7 +3,7 @@ using System.IO;
 
 namespace HandlebarsDotNet
 {
-    internal sealed class ExtendedStringReader : TextReader
+    public sealed class ExtendedStringReader : TextReader
     {
         private int _linePos;
         private int _charPos;

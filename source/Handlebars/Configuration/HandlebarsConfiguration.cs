@@ -12,7 +12,7 @@ namespace HandlebarsDotNet
     /// <summary>
     /// 
     /// </summary>
-    public sealed class HandlebarsConfiguration : IHandlebarsTemplateRegistrations
+    public sealed class HandlebarsConfiguration
     {
         /// <summary>
         /// 

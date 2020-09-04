@@ -1,47 +1,27 @@
-using System;
-using HandlebarsDotNet.Adapters;
-using HandlebarsDotNet.Compiler;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    internal readonly struct IteratorValueProvider : IDisposable
+    public readonly ref struct IteratorValueProvider
     {
-        public static IteratorValueProvider Create(BindingContext bindingContext)
+        private readonly Dictionary<ChainSegment, object> _data;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IteratorValueProvider(BindingContext bindingContext) : this()
         {
-            return new IteratorValueProvider(
-                bindingContext, 
-                RefPool<int>.Shared.Create(0), 
-                RefPool<bool>.Shared.Create(true), 
-                RefPool<bool>.Shared.Create(false)
-            );
+            _data = bindingContext.DataObject;
         }
         
-        private IteratorValueProvider(BindingContext bindingContext, 
-            ReusableRef<int> index,
-            ReusableRef<bool> first,
-            ReusableRef<bool> last) : this()
+        public object this[in ChainSegment index]
         {
-            Index = index;
-            First = first;
-            Last = last;
-            
-            bindingContext.ContextDataObject[ChainSegment.Index] = Index;
-            bindingContext.ContextDataObject[ChainSegment.First] = First;
-            bindingContext.ContextDataObject[ChainSegment.Last] = Last;
-        }
-
-        public readonly ReusableRef<int> Index;
-
-        public readonly ReusableRef<bool> First;
-
-        public readonly ReusableRef<bool> Last;
-        
-        public void Dispose()
-        { 
-            RefPool<int>.Shared.Return(Index);
-            RefPool<bool>.Shared.Return(First);
-            RefPool<bool>.Shared.Return(Last);
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                if(ReferenceEquals(index, null)) return;
+                _data[index] = value;
+            }
         }
     }
 }

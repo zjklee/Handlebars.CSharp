@@ -16,7 +16,7 @@ namespace HandlebarsDotNet.Helpers
             _helper = helper;
         }
 
-        public override object Invoke(object context, params object[] arguments)
+        protected override object Invoke(object context, params object[] arguments)
         {
             return _helper(context, arguments);
         }

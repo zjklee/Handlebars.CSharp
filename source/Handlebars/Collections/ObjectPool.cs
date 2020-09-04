@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace HandlebarsDotNet
 {
     internal static class ObjectPoolExtensions
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static DisposableContainer<T> Use<T>(this InternalObjectPool<T> objectPool) where T : class
         {
             return new DisposableContainer<T>(objectPool.Get(), objectPool.Return);
@@ -25,6 +27,7 @@ namespace HandlebarsDotNet
             for (var i = 0; i < 5; i++) Return(_policy.Create());
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get()
         {
             if (_queue.TryDequeue(out var item) && !ReferenceEquals(item, null))
@@ -35,6 +38,7 @@ namespace HandlebarsDotNet
             return _policy.Create();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Return(T obj)
         {
             if(obj == null) return;
@@ -47,15 +51,9 @@ namespace HandlebarsDotNet
         {
             private readonly InternalObjectPool<T> _target;
 
-            public Disposer(InternalObjectPool<T> target)
-            {
-                _target = target;
-            }
-            
-            public void Dispose()
-            {
-                _target._queue = new ConcurrentQueue<T>();
-            }
+            public Disposer(InternalObjectPool<T> target) => _target = target;
+
+            public void Dispose() => _target._queue = new ConcurrentQueue<T>();
         }
     }
 

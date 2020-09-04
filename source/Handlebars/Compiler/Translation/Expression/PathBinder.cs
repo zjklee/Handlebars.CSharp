@@ -40,7 +40,7 @@ namespace HandlebarsDotNet.Compiler
             
             if (!configuration.Helpers.TryGetValue(pathInfo, out var helper))
             {
-                helper = new LateBindHelperDescriptor(pathInfo, configuration).AsRef<HelperDescriptorBase>();
+                helper = Ref.Create<HelperDescriptorBase>(new LateBindHelperDescriptor(pathInfo, configuration));
                 configuration.Helpers.Add(pathInfo, helper);
             }
             else if (configuration.Compatibility.RelaxedHelperNaming)
@@ -48,13 +48,14 @@ namespace HandlebarsDotNet.Compiler
                 pathInfo.TagComparer();
                 if (!configuration.Helpers.ContainsKey(pathInfo))
                 {
-                    helper = new LateBindHelperDescriptor(pathInfo, configuration).AsRef<HelperDescriptorBase>();
+                    helper = Ref.Create<HelperDescriptorBase>(new LateBindHelperDescriptor(pathInfo, configuration));
                     configuration.Helpers.Add(pathInfo, helper);
                 }
             }
 
             var argumentsArg = Arg(ArrayEx.Empty<object>());
-            return context.Call(o => helper.Value.ReturnInvoke(o, o.Value, argumentsArg));
+            var textWriter = context.Member(o => o.TextWriter);
+            return Call(() => helper.Value.ReturnInvoke(context, textWriter, argumentsArg));
         }
     }
 }

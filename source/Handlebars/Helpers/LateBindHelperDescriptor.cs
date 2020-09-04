@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Collections;
@@ -26,7 +27,7 @@ namespace HandlebarsDotNet.Helpers
             _helperMissing = _configuration.Helpers[pathInfoStore.GetOrAdd("helperMissing")];
         }
 
-        internal override object ReturnInvoke(BindingContext bindingContext, object context, object[] arguments)
+        internal override object ReturnInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments)
         {
             var helperResolvers = (ObservableList<IHelperResolver>) _configuration.HelperResolvers;
             if(helperResolvers.Count != 0)
@@ -37,7 +38,7 @@ namespace HandlebarsDotNet.Helpers
                     var resolver = helperResolvers[index];
                     if (!resolver.TryResolveHelper(Name, targetType, out var helper)) continue;
 
-                    return helper.ReturnInvoke(bindingContext, context, arguments);
+                    return helper.ReturnInvoke(bindingContext, textWriter, arguments);
                 }
             }
 
@@ -47,10 +48,10 @@ namespace HandlebarsDotNet.Helpers
             var nameIndex = arguments.Length;
             Array.Resize(ref arguments, nameIndex + 1);
             arguments[nameIndex] = Name.TrimmedPath;
-            return _helperMissing.Value.ReturnInvoke(bindingContext, context, arguments);
+            return _helperMissing.Value.ReturnInvoke(bindingContext, textWriter, arguments);
         }
 
-        public override object Invoke(object context, params object[] arguments)
+        protected override object Invoke(object context, params object[] arguments)
         {
             throw new NotImplementedException();
         }

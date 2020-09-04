@@ -35,7 +35,7 @@ namespace HandlebarsDotNet.Features
         /// </summary>
         public TemplateClosure TemplateClosure { get; } = new TemplateClosure();
         
-        internal LinkedList<ClosureFeature> Children { get; } = new LinkedList<ClosureFeature>(); 
+        public LinkedList<ClosureFeature> Children { get; } = new LinkedList<ClosureFeature>(); 
         
         /// <summary>
         /// Middleware to use in order to apply transformation

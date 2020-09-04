@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HandlebarsDotNet.Collections;
 using HandlebarsDotNet.Features;
 using HandlebarsDotNet.ObjectDescriptors;
 
@@ -15,7 +16,7 @@ namespace HandlebarsDotNet
         /// <summary>
         /// 
         /// </summary>
-        public IList<IExpressionMiddleware> ExpressionMiddleware { get; } = new List<IExpressionMiddleware>();
+        public IList<IExpressionMiddleware> ExpressionMiddleware { get; } = new ObservableList<IExpressionMiddleware>();
         
         /// <inheritdoc cref="IFeature"/>
         public IList<IFeatureFactory> Features { get; } = new List<IFeatureFactory>
@@ -29,6 +30,6 @@ namespace HandlebarsDotNet
         /// <summary>
         /// The compiler used to compile <see cref="System.Linq.Expressions.Expression"/> 
         /// </summary>
-        public IExpressionCompiler ExpressionCompiler { get; set; }
+        public IList<IExpressionCompiler> ExpressionCompilers { get; set; } = new ObservableList<IExpressionCompiler>();
     }
 }

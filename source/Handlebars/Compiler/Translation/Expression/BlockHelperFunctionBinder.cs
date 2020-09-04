@@ -44,7 +44,8 @@ namespace HandlebarsDotNet.Compiler
             
             var helperName = pathInfo.TrimmedPath;
             var direction = bhex.IsRaw || pathInfo.IsBlockHelper ? BlockHelperDirection.Direct : BlockHelperDirection.Inverse;
-            var blockParams = CreateBlockParams();
+            var paramsVariables = new BlockParamsVariables(CompilationContext.Configuration.TemplateContext, bhex.BlockParams?.BlockParams);
+            var blockParams = Arg(paramsVariables);
 
             var blockHelpers = CompilationContext.Configuration.BlockHelpers;
 
@@ -67,19 +68,7 @@ namespace HandlebarsDotNet.Compiler
             blockHelpers.Add(pathInfo, lateBindBlockHelperRef);
 
             return BindByRef(lateBindBlockHelperRef);
-            
-            ExpressionContainer<BlockParamsValues> CreateBlockParams()
-            {
-                var parameters = bhex.BlockParams?.BlockParam?.Parameters;
-                if (parameters == null)
-                {
-                    return Arg(BlockParamsValues.Empty);
-                }
 
-                var parametersArg = Arg(parameters);
-                return Call(() => BlockParamsValues.Create(parametersArg));
-            }
-            
             ExpressionContainer<object[]> CreateArguments()
             {
                 var args = bhex.Arguments
@@ -114,10 +103,12 @@ namespace HandlebarsDotNet.Compiler
                 return direction switch
                 {
                     BlockHelperDirection.Direct => Call(() =>
-                        BlockHelperCallBinding(bindingContext, context, blockParams, direct, inverse, arguments, value)),
+                        BlockHelperCallBinding(bindingContext, context, blockParams, direct, inverse, arguments, value)
+                    ),
                     
                     BlockHelperDirection.Inverse => Call(() =>
-                        BlockHelperCallBinding(bindingContext, context, blockParams, inverse, direct, arguments, value)),
+                        BlockHelperCallBinding(bindingContext, context, blockParams, inverse, direct, arguments, value)
+                    ),
                     
                     _ => throw new HandlebarsCompilerException("Helper referenced with unknown prefix", readerContext)
                 };
@@ -128,20 +119,29 @@ namespace HandlebarsDotNet.Compiler
         private static void BlockHelperCallBindingByRef(
             BindingContext bindingContext, 
             object context,
-            BlockParamsValues blockParamsValues,
+            BlockParamsVariables blockParamsValues,
             Action<BindingContext, TextWriter, object> direct,
             Action<BindingContext, TextWriter, object> inverse,
             object[] arguments,
             Ref<BlockHelperDescriptorBase> helper)
         {
-            BlockHelperCallBinding(bindingContext, context, blockParamsValues, direct, inverse, arguments, helper.Value);
+            var helperOptions = HelperOptions.Create(direct, inverse, blockParamsValues, bindingContext);
+
+            try
+            {
+                helper.Value.Invoke(bindingContext.TextWriter, helperOptions, context, arguments);
+            }
+            finally
+            {
+                helperOptions.Dispose();
+            }
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void BlockHelperCallBinding(
             BindingContext bindingContext, 
             object context,
-            BlockParamsValues blockParamsValues,
+            BlockParamsVariables blockParamsValues,
             Action<BindingContext, TextWriter, object> direct,
             Action<BindingContext, TextWriter, object> inverse,
             object[] arguments,
@@ -156,7 +156,6 @@ namespace HandlebarsDotNet.Compiler
             finally
             {
                 helperOptions.Dispose();
-                blockParamsValues.Dispose();
             }
         }
     }

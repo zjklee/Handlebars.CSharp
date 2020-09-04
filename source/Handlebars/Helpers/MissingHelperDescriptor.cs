@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using HandlebarsDotNet.Compiler;
 
@@ -10,7 +11,7 @@ namespace HandlebarsDotNet.Helpers
         {
         }
 
-        internal override object ReturnInvoke(BindingContext bindingContext, object context, object[] arguments)
+        internal override object ReturnInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments)
         {
             var nameArgument = arguments.Last();
             if (arguments.Length > 1)
@@ -22,6 +23,6 @@ namespace HandlebarsDotNet.Helpers
             return name.GetUndefinedBindingResult(bindingContext.Configuration);
         }
 
-        public override object Invoke(object context, params object[] arguments) => throw new NotSupportedException();
+        protected override object Invoke(object context, params object[] arguments) => throw new NotSupportedException();
     }
 }

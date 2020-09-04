@@ -1,5 +1,4 @@
 using System.IO;
-using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.Helpers
@@ -16,15 +15,18 @@ namespace HandlebarsDotNet.Helpers
 
         public sealed override HelperType Type { get; } = HelperType.Write;
 
-        public abstract void Invoke(TextWriter output, object context, params object[] arguments);
+        protected abstract void Invoke(TextWriter output, object context, params object[] arguments);
 
-        internal sealed override object ReturnInvoke(BindingContext bindingContext, object context, object[] arguments)
+        internal sealed override object ReturnInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments)
         {
             using var writer = ReusableStringWriter.Get(bindingContext.Configuration.FormatProvider);
-            WriteInvoke(bindingContext, writer, context, arguments);
+            WriteInvoke(bindingContext, writer, arguments);
             return writer.ToString();
         }
         
-        internal sealed override void WriteInvoke(BindingContext bindingContext, TextWriter output, object context, object[] arguments) => Invoke(output, context, arguments);
+        internal sealed override void WriteInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments)
+        {
+            Invoke(textWriter, bindingContext.Value, arguments);
+        }
     }
 }

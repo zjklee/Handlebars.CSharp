@@ -1,5 +1,5 @@
 using System.Dynamic;
-using HandlebarsDotNet.Extension.NewtonsoftJson;
+//using HandlebarsDotNet.Extension.NewtonsoftJson;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -109,21 +109,21 @@ namespace HandlebarsDotNet.Test
             Assert.Equal("not empty", template(new { input = 1 }));
         }
         
-        // Issue https://github.com/zjklee/Handlebars.CSharp/issues/18
-        [Fact]
-        public void If_Newtonsoft_Json_Linq_JValue()
-        {
-            var source = "{{#if myobj.key}}success{{else}}failure{{/if}}";
-            
-            var handlebars = Handlebars.Create();
-            handlebars.Configuration.UseNewtonsoftJson();
-            
-            var template = handlebars.Compile(source);
-            var data = JObject.Parse("{ \"myobj\":{\"key\":\"val\"} }");
-            
-            var result = template(data);
-            
-            Assert.Equal("success", result);
-        }
+        // // Issue https://github.com/zjklee/Handlebars.CSharp/issues/18
+        // [Fact]
+        // public void If_Newtonsoft_Json_Linq_JValue()
+        // {
+        //     var source = "{{#if myobj.key}}success{{else}}failure{{/if}}";
+        //     
+        //     var handlebars = Handlebars.Create();
+        //     handlebars.Configuration.UseNewtonsoftJson();
+        //     
+        //     var template = handlebars.Compile(source);
+        //     var data = JObject.Parse("{ \"myobj\":{\"key\":\"val\"} }");
+        //     
+        //     var result = template(data);
+        //     
+        //     Assert.Equal("success", result);
+        // }
     }
 }

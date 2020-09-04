@@ -115,10 +115,5 @@ namespace HandlebarsDotNet.Extension.Json
             value = null;
             return false;
         }
-        
-        private static ReusableRef<T> CreateRef<T>(T value)
-        {
-            return RefPool<T>.Shared.Create(value);
-        }
     }
 }

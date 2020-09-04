@@ -1,245 +1,118 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using HandlebarsDotNet.Adapters;
+using System.Runtime.CompilerServices;
+using HandlebarsDotNet.Collections;
+using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
-using HandlebarsDotNet.ValueProviders;
+using HandlebarsDotNet.ObjectDescriptors;
 
-namespace HandlebarsDotNet.Compiler
+namespace HandlebarsDotNet
 {
-    internal sealed class BindingContext : IFrame
+    public partial class BindingContext : IDisposable
     {
-        private static readonly BindingContextPool Pool = new BindingContextPool();
+        internal readonly Dictionary<ChainSegment, object> DataObject;
+        internal readonly Dictionary<ChainSegment, object> BlockParams;
 
-        public static BindingContext Create(ICompiledHandlebarsConfiguration configuration, object value,
-            EncodedTextWriter writer, BindingContext parent, string templatePath)
-        {
-            return Pool.CreateContext(configuration, value, writer, parent, templatePath, null);
-        } 
+        private readonly UndefinedBindingResult _undefinedParent;
         
-        public static BindingContext Create(ICompiledHandlebarsConfiguration configuration, object value,
-            EncodedTextWriter writer, BindingContext parent, string templatePath,
-            Action<BindingContext, TextWriter, object> partialBlockTemplate)
-        {
-            return Pool.CreateContext(configuration, value, writer, parent, templatePath, partialBlockTemplate);
-        }
-        
-        private readonly Ref<object> _rootRef = new Ref<object>(null);
-        private readonly Ref<object> _parentRef = new Ref<object>(null);
-
         private BindingContext()
         {
-            InlinePartialTemplates = new Dictionary<string, Action<TextWriter, object>>();
-
-            ContextDataObject = new Dictionary<ChainSegment, Ref>(10);
-            BlockParamsObject = new Dictionary<ChainSegment, Ref>(3);
+            _undefinedParent = ChainSegment.Parent.GetUndefinedBindingResult(Configuration);
+            InlinePartialTemplates = new CascadeDictionary<string, Action<TextWriter, object>>();
             
-            Data = new DataValues(ContextDataObject);
-            BlockParams = BlockParamsValues.Empty;
+            DataObject = new Dictionary<ChainSegment, object>(ChainSegment.DefaultEqualityComparer);
+            BlockParams = new Dictionary<ChainSegment, object>();//new CascadeDictionary<ChainSegment, object>(ChainSegment.DefaultEqualityComparer);
         }
         
-        public Dictionary<ChainSegment, Ref> ContextDataObject { get; }
-        public Dictionary<ChainSegment, Ref> BlockParamsObject { get; }
-
         private void Initialize()
         {
             Root = ParentContext?.Root ?? this;
-            _rootRef.Value = Root.Value;
-
-            ContextDataObject[ChainSegment.Root] = _rootRef;
-            ContextDataObject[ChainSegment.Parent] = _parentRef;
+            
+            DataObject[ChainSegment.Root] = Root.Value;
             
             if (ParentContext == null)
             {
-                _parentRef.Value = ChainSegment.Parent.GetUndefinedBindingResult(Configuration);
+                DataObject[ChainSegment.Parent] = _undefinedParent;
                 return;
             }
 
-            _parentRef.Value = ParentContext.Value;
+            DataObject[ChainSegment.Parent] = ParentContext.Value;
+            ParentContext.BlockParams.CopyTo(BlockParams);
 
-            TemplatePath = ParentContext.TemplatePath ?? TemplatePath;
-            
             //Inline partials cannot use the Handlebars.RegisteredTemplate method
             //because it pollutes the static dictionary and creates collisions
             //where the same partial name might exist in multiple templates.
             //To avoid collisions, pass around a dictionary of compiled partials
             //in the context
-            ParentContext.InlinePartialTemplates.CopyTo(InlinePartialTemplates);
+            InlinePartialTemplates.Outer = ParentContext.InlinePartialTemplates;
 
-            if (!(Value is HashParameterDictionary dictionary)) return;
+            if (!(Value is HashParameterDictionary dictionary) || ParentContext.Value == null || ReferenceEquals(Value, ParentContext.Value)) return;
             
             // Populate value with parent context
-            foreach (var item in GetContextDictionary(ParentContext.Value))
-            {
-                if (dictionary.ContainsKey(item.Key)) continue;
-                dictionary[item.Key] = item.Value;
-            }
+            PopulateHash(dictionary, ParentContext.Value, Configuration);
         }
+        
+        internal Action<BindingContext, TextWriter, object> PartialBlockTemplate { get; set; }
+        internal CascadeDictionary<string, Action<TextWriter, object>> InlinePartialTemplates { get; }
 
-        public string TemplatePath { get; private set; }
-
+        public BindingContext Root { get; private set; }
+        public BindingContext ParentContext { get; private set; }
+        
         public ICompiledHandlebarsConfiguration Configuration { get; private set; }
-        
         public EncodedTextWriter TextWriter { get; private set; }
-
-        public Dictionary<string, Action<TextWriter, object>> InlinePartialTemplates { get; }
-
-        public Action<BindingContext, TextWriter, object> PartialBlockTemplate { get; private set; }
         
+        public object Value { get; set; }
+
         public bool SuppressEncoding
         {
             get => TextWriter.SuppressEncoding;
             set => TextWriter.SuppressEncoding = value;
         }
 
-        public DataValues Data { get; }
-        public object Value { get; set; }
-
-        public BindingContext ParentContext { get; private set; }
-
-        public BindingContext Root { get; private set; }
-
-        public BlockParamsValues BlockParams { get; set; }
-
-        public bool TryGetVariable(ChainSegment segment, out object value)
-        {
-            if (BlockParamsObject.TryGetValue(segment, out var valueRef))
-            {
-                value = valueRef.GetValue();
-                return true;
-            }
-
-            value = null;
-            if (Value == null) return false;
-
-            var instanceType = Value.GetType();
-            var descriptorProvider = Configuration.ObjectDescriptorProvider;
-            if(
-                descriptorProvider.TryGetDescriptor(instanceType, out var descriptor) &&
-                descriptor.MemberAccessor.TryGetValue(Value, instanceType, segment, out value)
-            )
-            {
-                return true;
-            }
-
-            return false;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal BindingContext CreateChildContext(object value) 
+            => Create(this, value ?? Value);
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal BindingContext CreateChildContext(object value, Action<BindingContext, TextWriter, object> partialBlockTemplate) 
+            => Create(this, value ?? Value, partialBlockTemplate);
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BindingContext CreateFrame(object value = null) => Create(this, value);
+        
+        public void Dispose() => Pool.Return(this);
+
         public bool TryGetContextVariable(ChainSegment segment, out object value)
         {
-            var hasValue = ContextDataObject.TryGetValue(segment, out var valueRef) 
-                           || BlockParamsObject.TryGetValue(segment, out valueRef);
-
-            if (hasValue)
+            return DataObject.TryGetValue(segment, out value)
+                   || BlockParams.TryGetValue(segment, out value);
+        }
+        
+        public bool TryGetVariable(ChainSegment segment, out object value)
+        {
+            if (BlockParams.TryGetValue(segment, out value))
             {
-                value = valueRef.GetValue();
                 return true;
             }
 
-            value = null;
-            return false;
-        }
-
-        private static IEnumerable<KeyValuePair<string, object>> GetContextDictionary(object target)
-        {
-            switch (target)
-            {
-                case null:
-                    yield break;
-                
-                case IDictionary<string, object> dictionary:
-                {
-                    foreach (var item in dictionary)
-                    {
-                        yield return item;
-                    }
-
-                    break;
-                }
-                default:
-                {
-                    var type = target.GetType();
-
-                    var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (var field in fields) 
-                    {
-                        yield return new KeyValuePair<string, object>(field.Name, field.GetValue(target));
-                    }
-
-                    var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                    foreach (var property in properties) 
-                    {
-                        if (property.GetIndexParameters().Length == 0)
-                        {
-                            yield return new KeyValuePair<string, object>(property.Name, property.GetValue(target));
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        public BindingContext CreateChildContext(object value, Action<BindingContext, TextWriter, object> partialBlockTemplate = null)
-        {
-            return Create(Configuration, value ?? Value, TextWriter, this, TemplatePath, partialBlockTemplate ?? PartialBlockTemplate);
+            return PathResolver.TryAccessMember(Value, segment, Configuration, out value);
         }
         
-        public BindingContext CreateChildContext()
+        private static void PopulateHash(HashParameterDictionary hash, object from, ICompiledHandlebarsConfiguration configuration)
         {
-            return Create(Configuration, null, TextWriter, this, TemplatePath, PartialBlockTemplate);
-        }
-        
-        public void Dispose()
-        {
-            Pool.Return(this);
-        }
-        
-        private class BindingContextPool : InternalObjectPool<BindingContext>
-        {
-            public BindingContextPool() : base(new BindingContextPolicy())
+            var typeDescriptor = TypeDescriptor.Create(from, configuration);
+            if (!typeDescriptor.TryGetObjectDescriptor(out var descriptor))
+                throw new HandlebarsRuntimeException("Cannot populate context");
+
+            var accessor = descriptor.MemberAccessor;
+            var properties = descriptor.GetProperties(descriptor, from);
+            foreach (var property in properties)
             {
-            }
-            
-            public BindingContext CreateContext(ICompiledHandlebarsConfiguration configuration, object value, EncodedTextWriter writer, BindingContext parent, string templatePath, Action<BindingContext, TextWriter, object> partialBlockTemplate)
-            {
-                var context = Get();
-                context.Configuration = configuration;
-                context.Value = value;
-                context.TextWriter = writer;
-                context.ParentContext = parent;
-                context.TemplatePath = templatePath;
-                context.PartialBlockTemplate = partialBlockTemplate;
-
-                context.Initialize();
-
-                return context;
-            }
-        
-            private class BindingContextPolicy : IInternalObjectPoolPolicy<BindingContext>
-            {
-                public BindingContext Create()
-                {
-                    return new BindingContext();
-                }
-
-                public bool Return(BindingContext item)
-                {
-                    item.Root = null;
-                    item.Value = null;
-                    item.ParentContext = null;
-                    item.TemplatePath = null;
-                    item.TextWriter = null;
-                    item.PartialBlockTemplate = null;
-                    item.BlockParams = BlockParamsValues.Empty;
-                    item.InlinePartialTemplates.Clear();
-
-                    item.BlockParamsObject.Clear();
-                    item.ContextDataObject.Clear();
-
-                    return true;
-                }
+                var segment = ChainSegment.Create(configuration.TemplateContext, property);
+                if(hash.ContainsKey(segment)) continue;
+                if (!accessor.TryGetValue(from, typeDescriptor.Type, segment, out var value)) continue;
+                hash[segment] = value;
             }
         }
     }

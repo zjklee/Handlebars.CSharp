@@ -60,17 +60,6 @@ namespace HandlebarsDotNet
         }
         
         /// <summary>
-        /// Creates standalone instance of <see cref="Handlebars"/> environment
-        /// </summary>
-        /// <param name="configuration"></param>
-        /// <returns></returns>
-        internal static IHandlebars Create(ICompiledHandlebarsConfiguration configuration)
-        {
-            configuration ??= new HandlebarsConfigurationAdapter(new HandlebarsConfiguration());
-            return new HandlebarsEnvironment(configuration);
-        }
-
-        /// <summary>
         /// 
         /// </summary>
         /// <param name="template"></param>

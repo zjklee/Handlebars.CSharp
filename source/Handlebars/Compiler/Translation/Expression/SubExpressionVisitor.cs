@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.IO;
+using System.Linq.Expressions;
 using Expressions.Shortcuts;
 using HandlebarsDotNet.Helpers;
 using static Expressions.Shortcuts.ExpressionShortcuts;
@@ -33,11 +34,11 @@ namespace HandlebarsDotNet.Compiler
         private static Expression HandleMethodCallExpression(MethodCallExpression helperCall)
         {
             var bindingContext = Arg<BindingContext>(helperCall.Arguments[0]);
-            var context = Arg<object>(helperCall.Arguments[2]);
-            var arguments = Arg<object[]>(helperCall.Arguments[3]);
+            var textWriter = Arg<TextWriter>(helperCall.Arguments[1]);
+            var arguments = Arg<object[]>(helperCall.Arguments[2]);
             var helper = Arg<HelperDescriptorBase>(helperCall.Object);
             
-            return helper.Call(o => o.ReturnInvoke(bindingContext, context, arguments));
+            return helper.Call(o => o.ReturnInvoke(bindingContext, textWriter, arguments));
         }
     }
 }

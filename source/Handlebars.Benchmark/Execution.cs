@@ -4,6 +4,7 @@ using System.IO;
 using BenchmarkDotNet.Attributes;
 using HandlebarsDotNet;
 using HandlebarsDotNet.Adapters;
+using HandlebarsDotNet.ValueProviders;
 
 namespace HandlebarsNet.Benchmark
 {
@@ -46,13 +47,12 @@ namespace HandlebarsNet.Benchmark
             
             handlebars.RegisterHelper("helper9", (output, options, context, arguments) =>
             {
-                var index = new Ref<int>(0);
                 using var frame = options.CreateFrame();
-                frame.BlockParams[0] = index;
-                
+                var blockParamsValues = new BlockParamsValues(frame);
+
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    index.Value = i;
+                    blockParamsValues[options.BlockParamsVariables[0]] = i;
                     options.Template(output, frame);
                 }
             });
@@ -106,13 +106,12 @@ namespace HandlebarsNet.Benchmark
             
             handlebars.RegisterHelper("helper10", (output, options, context, arguments) =>
             {
-                var index = new Ref<int>(0);
                 using var frame = options.CreateFrame();
-                frame.BlockParams[0] = index;
-                
+                var blockParamsValues = new BlockParamsValues(frame);
+
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    index.Value = i;
+                    blockParamsValues[options.BlockParamsVariables[0]] = i;
                     options.Template(output, frame);
                 }
             });
@@ -203,5 +202,8 @@ namespace HandlebarsNet.Benchmark
         }
 
         private static TextReader Read(string template) => new StringReader(template);
+        
+        [GlobalCleanup]
+        public void Dispose() => Handlebars.Cleanup();
     }
 }

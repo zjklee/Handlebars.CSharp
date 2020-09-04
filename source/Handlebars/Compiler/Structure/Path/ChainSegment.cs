@@ -1,25 +1,47 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using HandlebarsDotNet.Collections;
+using HandlebarsDotNet;
 
 namespace HandlebarsDotNet.Compiler.Structure.Path
 {
     /// <summary>
     /// Represents parts of single <see cref="PathSegment"/> separated with dots.
     /// </summary>
-    public sealed class ChainSegment : IEquatable<ChainSegment>
+    public sealed class ChainSegment : IEquatable<ChainSegment>, IEquatable<string>
     {
         private static readonly char[] TrimStart = {'@'};
-        private static readonly LookupSlim<string, ChainSegment> Lookup = new LookupSlim<string, ChainSegment>();
-
-        static ChainSegment() => Handlebars.Disposables.Add(new Disposer());
+        public static IEqualityComparer<ChainSegment> DefaultEqualityComparer { get; } = new DefaultEqualityComparerImpl();
 
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="context"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static ChainSegment Create(string value) => Lookup.GetOrAdd(value, v => new ChainSegment(v));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ChainSegment Create(TemplateContext context, string value) => context.CreateChainSegment(value);
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ChainSegment Create(TemplateContext context, object value)
+        {
+            if (value is ChainSegment segment) return segment;
+            return Create(context, value as string ?? value.ToString());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ChainSegment Create(string value, bool isVariable = true)
+        {
+            var variable = isVariable ? $"@{value}" : value;
+            
+            return Create(TemplateContext.Shared, variable);
+        }
 
         public static ChainSegment Index { get; } = Create(nameof(Index));
         public static ChainSegment First { get; } = Create(nameof(First));
@@ -28,17 +50,18 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
         public static ChainSegment Key { get; } = Create(nameof(Key));
         public static ChainSegment Root { get; } = Create(nameof(Root));
         public static ChainSegment Parent { get; } = Create(nameof(Parent));
+        public static ChainSegment This { get; } = Create(nameof(This), false);
         
         private readonly object _lock = new object();
 
-        private readonly int _hashCode;
+        public readonly int HashCode;
         private readonly string _value;
         private UndefinedBindingResult _undefinedBindingResult;
         
         /// <summary>
         ///  
         /// </summary>
-        private ChainSegment(string value)
+        internal ChainSegment(in string value)
         {
             var segmentValue = string.IsNullOrEmpty(value) ? "this" : value.TrimStart(TrimStart);
             var segmentTrimmedValue = TrimSquareBrackets(segmentValue);
@@ -49,10 +72,7 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
             TrimmedValue = segmentTrimmedValue;
             LowerInvariant = segmentTrimmedValue.ToLowerInvariant();
             
-            IsValue = LowerInvariant == "value";
-            IsKey = LowerInvariant == "key";
-
-            _hashCode = GetHashCodeImpl();
+            HashCode = GetHashCodeImpl();
         }
 
         /// <summary>
@@ -71,8 +91,6 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
         public readonly bool IsThis;
 
         internal readonly string LowerInvariant;
-        internal readonly bool IsValue;
-        internal readonly bool IsKey;
 
         /// <summary>
         /// Returns string representation of current <see cref="ChainSegment"/>
@@ -84,7 +102,12 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return EqualsImpl(other);
+            return DefaultEqualityComparer.Equals(this, other);
+        }
+
+        public bool Equals(string other)
+        {
+            return LowerInvariant == other?.ToLowerInvariant();
         }
 
         /// <inheritdoc />
@@ -92,35 +115,29 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != GetType()) return false;
-            return EqualsImpl((ChainSegment) obj);
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool EqualsImpl(ChainSegment other)
-        {
-            return IsThis == other.IsThis
-                   && LowerInvariant == other.LowerInvariant;
+            if (!(obj is ChainSegment other)) return false;
+            return DefaultEqualityComparer.Equals(this, other);
         }
 
         /// <inheritdoc />
-        public override int GetHashCode() => _hashCode;
+        public override int GetHashCode() => HashCode;
 
         private int GetHashCodeImpl()
         {
             unchecked
             {
                 var hashCode = IsThis.GetHashCode();
-                hashCode = (hashCode * 397) ^ (LowerInvariant.GetHashCode());
+                //hashCode = (hashCode * 397) ^ IsThis.GetHashCode();
+                hashCode = (hashCode * 397) ^ (LowerInvariant?.GetHashCode() ?? 0);
                 return hashCode;
             }
         }
+        
+        /// <inheritdoc cref="Equals(ChainSegment)"/>
+        public static bool operator ==(ChainSegment a, ChainSegment b) => DefaultEqualityComparer.Equals(a, b);
 
-        /// <inheritdoc cref="Equals(HandlebarsDotNet.Compiler.Structure.Path.ChainSegment)"/>
-        public static bool operator ==(ChainSegment a, ChainSegment b) => a.Equals(b);
-
-        /// <inheritdoc cref="Equals(HandlebarsDotNet.Compiler.Structure.Path.ChainSegment)"/>
-        public static bool operator !=(ChainSegment a, ChainSegment b) => !a.Equals(b);
+        /// <inheritdoc cref="Equals(ChainSegment)"/>
+        public static bool operator !=(ChainSegment a, ChainSegment b) => !DefaultEqualityComparer.Equals(a, b);
 
         /// <inheritdoc cref="ToString"/>
         public static implicit operator string(ChainSegment segment) => segment._value;
@@ -152,12 +169,18 @@ namespace HandlebarsDotNet.Compiler.Structure.Path
             }
         }
         
-        private sealed class Disposer : IDisposable
+        private sealed class DefaultEqualityComparerImpl : IEqualityComparer<ChainSegment>
         {
-            public void Dispose()
+            public bool Equals(ChainSegment x, ChainSegment y)
             {
-                Lookup.Clear();
+                if (ReferenceEquals(x, y)) return true;
+                if (ReferenceEquals(x, null)) return false;
+                if (ReferenceEquals(y, null)) return false;
+                
+                return x.HashCode == y.HashCode && /*x.IsVariable == y.IsVariable &&*/ x.IsThis == y.IsThis && x.LowerInvariant == y.LowerInvariant;
             }
+
+            public int GetHashCode(ChainSegment obj) => obj.HashCode;
         }
     }
 }

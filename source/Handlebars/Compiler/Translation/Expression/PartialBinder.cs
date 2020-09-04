@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Linq.Expressions;
 using Expressions.Shortcuts;
+using HandlebarsDotNet.Adapters;
 
 namespace HandlebarsDotNet.Compiler
 {
@@ -34,20 +36,19 @@ namespace HandlebarsDotNet.Compiler
             }
 
             var partialName = ExpressionShortcuts.Cast<string>(pex.PartialName);
-            var configuration = ExpressionShortcuts.Arg(CompilationContext.Configuration);
             return ExpressionShortcuts.Call(() =>
-                InvokePartialWithFallback(partialName, bindingContext, (ICompiledHandlebarsConfiguration) configuration)
+                InvokePartialWithFallback(partialName, bindingContext)
             );
         }
 
-        private static void InvokePartialWithFallback(
-            string partialName,
-            BindingContext context,
-            ICompiledHandlebarsConfiguration configuration)
+        private static void InvokePartialWithFallback(string partialName, BindingContext context)
         {
-            if (InvokePartial(partialName, context, configuration)) return;
-            if (context.PartialBlockTemplate == null)
+            var partialBlockTemplate = context.PartialBlockTemplate;
+            
+            if (InvokePartial(partialName, context, partialBlockTemplate)) return;
+            if (partialBlockTemplate == null)
             {
+                var configuration = context.Configuration;
                 if (configuration.MissingPartialTemplateHandler == null)
                     throw new HandlebarsRuntimeException($"Referenced partial name {partialName} could not be resolved");
                 
@@ -55,22 +56,19 @@ namespace HandlebarsDotNet.Compiler
                 return;
             }
 
-            context.PartialBlockTemplate(context, context.TextWriter, context);
+            partialBlockTemplate(context, context.TextWriter, context);
         }
 
-        private static bool InvokePartial(
-            string partialName,
-            BindingContext context,
-            ICompiledHandlebarsConfiguration configuration)
+        private static bool InvokePartial(string partialName, BindingContext context, Action<BindingContext, TextWriter, object> partialBlockTemplate)
         {
             if (partialName.Equals(SpecialPartialBlockName))
             {
-                if (context.PartialBlockTemplate == null)
+                if (partialBlockTemplate == null)
                 {
                     return false;
                 }
 
-                context.PartialBlockTemplate(context, context.TextWriter, context);
+                partialBlockTemplate(context, context.TextWriter, context);
                 return true;
             }
 
@@ -80,27 +78,38 @@ namespace HandlebarsDotNet.Compiler
                 partial(context.TextWriter, context);
                 return true;
             }
-            
-            // Partial is not found, so call the resolver and attempt to load it.
-            if (!configuration.RegisteredTemplates.ContainsKey(partialName))
-            {
-                var handlebars = Handlebars.Create(configuration);
-                if (configuration.PartialTemplateResolver == null 
-                    || !configuration.PartialTemplateResolver.TryRegisterPartial(handlebars, partialName, context.TemplatePath))
-                {
-                    // Template not found.
-                    return false;
-                }
-            }
 
-            try
+            var configuration = context.Configuration;
+            // Partial is not found, so call the resolver and attempt to load it.
+            if (configuration.RegisteredTemplates.TryGetValue(partialName, out var registeredPartial))
             {
-                configuration.RegisteredTemplates[partialName](context.TextWriter, context);
+                Invoke(partialName, context, registeredPartial);
                 return true;
             }
-            catch (Exception exception)
+
+            var templateResolver = configuration.PartialTemplateResolver;
+            if (templateResolver == null || !templateResolver.TryResolvePartial(configuration, partialName, out partial))
             {
-                throw new HandlebarsRuntimeException($"Runtime error while rendering partial '{partialName}', see inner exception for more information", exception);
+                // Template not found.
+                return false;
+            }
+            
+            configuration.RegisteredTemplates.Add(partialName, partial);
+            Invoke(partialName, context, partial);
+            return true;
+            
+            static void Invoke(string partialName, BindingContext bindingContext, Action<TextWriter, object> action)
+            {
+                try
+                {
+                    action(bindingContext.TextWriter, bindingContext);
+                }
+                catch (Exception exception)
+                {
+                    throw new HandlebarsRuntimeException(
+                        $"Runtime error while rendering partial '{partialName}', see inner exception for more information",
+                        exception);
+                }
             }
         }
     }

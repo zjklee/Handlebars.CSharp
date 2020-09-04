@@ -18,9 +18,9 @@ namespace HandlebarsDotNet.Features
         public void OnCompiling(ICompiledHandlebarsConfiguration configuration)
         {
             var pathInfoStore = configuration.PathInfoStore;
-            configuration.BlockHelpers[pathInfoStore.GetOrAdd("with")] = new WithBlockHelperDescriptor().AsRef<BlockHelperDescriptorBase>();
-            configuration.BlockHelpers[pathInfoStore.GetOrAdd("*inline")] = new InlineBlockHelperDescriptor().AsRef<BlockHelperDescriptorBase>();
-            configuration.Helpers[pathInfoStore.GetOrAdd("lookup")] = new LookupReturnHelperDescriptor(configuration).AsRef<HelperDescriptorBase>();
+            configuration.BlockHelpers[pathInfoStore.GetOrAdd("with")] = Ref.Create<BlockHelperDescriptorBase>(new WithBlockHelperDescriptor());
+            configuration.BlockHelpers[pathInfoStore.GetOrAdd("*inline")] = Ref.Create<BlockHelperDescriptorBase>(new InlineBlockHelperDescriptor());
+            configuration.Helpers[pathInfoStore.GetOrAdd("lookup")] = Ref.Create<HelperDescriptorBase>(new LookupReturnHelperDescriptor(configuration));
         }
 
         public void CompilationCompleted()

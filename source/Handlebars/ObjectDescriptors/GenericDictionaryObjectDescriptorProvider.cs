@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
-using HandlebarsDotNet.Adapters;
 using HandlebarsDotNet.Collections;
+using HandlebarsDotNet.Iterators;
 using HandlebarsDotNet.MemberAccessors.DictionaryAccessors;
 using HandlebarsDotNet.Polyfills;
 
@@ -55,75 +54,55 @@ namespace HandlebarsDotNet.ObjectDescriptors
                     .Where(i => i.GetTypeInfo().IsGenericType)
                     .Where(i => i.GetGenericTypeDefinition() == typeof(IDictionary<,>))
                     .FirstOrDefault(i =>
-                        TypeDescriptor.GetConverter(i.GetGenericArguments()[0]).CanConvertFrom(typeof(string))
+                        System.ComponentModel.TypeDescriptor.GetConverter(i.GetGenericArguments()[0]).CanConvertFrom(typeof(string))
                     );
             });
 
         private static ObjectDescriptor CreateClassDescriptorWithClassProperties<T, TK, TV>() 
-            where T : IDictionary<TK, TV>
+            where T : class, IDictionary<TK, TV>
             where TK: class
             where TV: class
         {
-            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
-            {
-                foreach (var key in o.Keys) yield return key;
-            }
-            
-            return new ObjectDescriptor(
-                typeof(IDictionary<TK, TV>), 
+            return new ObjectDescriptor<T>(
                 new GenericClassDictionaryAccessor<T, TK, TV>(),
-                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+                self => new DictionaryIterator<T, TK, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
         
-        private static ObjectDescriptor CreateClassDescriptorWithStructProperties<T, TK, TV>() 
-            where T : IDictionary<TK, TV>
+        private static ObjectDescriptor CreateClassDescriptorWithStructProperties<T, TK, TV>()
+            where T : class, IDictionary<TK, TV>
             where TK: struct
             where TV: class
         {
-            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
-            {
-                foreach (var key in o.Keys) yield return key.AsRef();
-            }
-            
-            return new ObjectDescriptor(
-                typeof(IDictionary<TK, TV>), 
+            return new ObjectDescriptor<T>(
                 new GenericClassDictionaryAccessor<T, TK, TV>(),
-                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+                self => new DictionaryIterator<T, TK, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
         
         private static ObjectDescriptor CreateStructDescriptorWithClassProperties<T, TK, TV>() 
-            where T : IDictionary<TK, TV>
+            where T : class, IDictionary<TK, TV>
             where TK: class
             where TV: struct
         {
-            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
-            {
-                foreach (var key in o.Keys) yield return key;
-            }
-            
-            return new ObjectDescriptor(
-                typeof(IDictionary<TK, TV>), 
+            return new ObjectDescriptor<T>(
                 new GenericStructDictionaryAccessor<T, TK, TV>(),
-                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+                self => new DictionaryIterator<T, TK, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
         
         private static ObjectDescriptor CreateStructDescriptorWithStructProperties<T, TK, TV>() 
-            where T : IDictionary<TK, TV>
+            where T : class, IDictionary<TK, TV>
             where TK: struct
             where TV: struct
         {
-            IEnumerable<object> Enumerate(IDictionary<TK, TV> o)
-            {
-                foreach (var key in o.Keys) yield return new Ref<TK>(key);
-            }
-            
-            return new ObjectDescriptor(
-                typeof(IDictionary<TK, TV>), 
+            return new ObjectDescriptor<T>(
                 new GenericStructDictionaryAccessor<T, TK, TV>(),
-                (descriptor, o) => Enumerate((IDictionary<TK, TV>) o)
+                self => new DictionaryIterator<T, TK, TV>(self),
+                (descriptor, o) => o.Keys
             );
         }
     }

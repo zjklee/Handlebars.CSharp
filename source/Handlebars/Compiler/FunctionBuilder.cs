@@ -50,8 +50,8 @@ namespace HandlebarsDotNet.Compiler
                 var expression = (Expression) Expression.Block(expressions);
                 expression = Reduce(expression, context);
 
-                var lambda = ContextBinder.Bind(context, expression, templatePath);
-                return configuration.ExpressionCompiler.Compile(lambda);
+                var lambda = ContextBinder.Bind(context, expression);
+                return configuration.Compiler.Compile(lambda);
             }
             catch (Exception ex)
             {
@@ -76,7 +76,7 @@ namespace HandlebarsDotNet.Compiler
                 var expression = (Expression) Expression.Block(expressions);
                 expression = Reduce(expression, context);
 
-                return ContextBinder.Bind(context, expression, parentContext, templatePath);
+                return ContextBinder.Bind(context, expression, parentContext);
             }
             catch (Exception ex)
             {
@@ -90,7 +90,7 @@ namespace HandlebarsDotNet.Compiler
             {
                 var expression = CompileCore(expressions, null, configuration,  templatePath);
 
-                return configuration.ExpressionCompiler.Compile(expression);
+                return configuration.Compiler.Compile(expression);
             }
             catch (Exception ex)
             {

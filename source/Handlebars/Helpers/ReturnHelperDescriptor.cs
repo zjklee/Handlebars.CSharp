@@ -1,5 +1,4 @@
 using System.IO;
-using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
 
 namespace HandlebarsDotNet.Helpers
@@ -33,12 +32,14 @@ namespace HandlebarsDotNet.Helpers
         /// <param name="context"></param>
         /// <param name="arguments"></param>
         /// <returns></returns>
-        public abstract object Invoke(object context, params object[] arguments);
+        protected abstract object Invoke(object context, params object[] arguments);
 
-        internal override object ReturnInvoke(BindingContext bindingContext, object context, object[] arguments) => 
-            Invoke(context, arguments);
+        internal override object ReturnInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments)
+        {
+            return Invoke(bindingContext.Value, arguments);
+        }
 
-        internal sealed override void WriteInvoke(BindingContext bindingContext, TextWriter output, object context, object[] arguments) => 
-            output.Write(ReturnInvoke(bindingContext, context, arguments));
+        internal sealed override void WriteInvoke(BindingContext bindingContext, TextWriter textWriter, object[] arguments) => 
+            bindingContext.TextWriter.Write(ReturnInvoke(bindingContext, textWriter, arguments));
     }
 }

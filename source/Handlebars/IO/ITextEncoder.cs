@@ -11,5 +11,7 @@
         /// <param name="value"></param>
         /// <returns></returns>
         string Encode(string value);
+
+        bool RequireEncoding(char c);
     }
 }

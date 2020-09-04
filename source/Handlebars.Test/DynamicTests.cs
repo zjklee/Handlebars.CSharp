@@ -4,7 +4,7 @@ using Xunit;
 using System.Dynamic;
 using System.Collections.Generic;
 using System.Linq;
-using HandlebarsDotNet.Extension.NewtonsoftJson;
+//using HandlebarsDotNet.Extension.NewtonsoftJson;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 #if !noJsonSupport
@@ -21,7 +21,7 @@ namespace HandlebarsDotNet.Test
             private readonly List<IHandlebars> _data = new List<IHandlebars>
             {
                 Handlebars.Create(),
-                Handlebars.Create(new HandlebarsConfiguration().UseNewtonsoftJson())
+                //Handlebars.Create(new HandlebarsConfiguration().UseNewtonsoftJson())
             };
 
             public IEnumerator<object[]> GetEnumerator() => _data.Select(o => new object[] { o }).GetEnumerator();

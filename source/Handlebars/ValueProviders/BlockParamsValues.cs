@@ -1,84 +1,65 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using HandlebarsDotNet.Adapters;
-using HandlebarsDotNet.Compiler;
 using HandlebarsDotNet.Compiler.Structure.Path;
+using HandlebarsDotNet;
+using HandlebarsDotNet.Polyfills;
 
 namespace HandlebarsDotNet.ValueProviders
 {
-    public sealed class BlockParamsValues : IValueProvider, IDisposable
+    public class BlockParamsVariables
     {
-        private static readonly InternalObjectPool<BlockParamsValues> Pool = new InternalObjectPool<BlockParamsValues>(new Policy());
-        
-        public static BlockParamsValues Empty { get; } = new BlockParamsValues();
-        
-        private ChainSegment[] _variables;
+        private readonly ChainSegment[] _indexes;
 
-        private Dictionary<ChainSegment, Ref> _values;
-
-        public static BlockParamsValues Create(ChainSegment[] variables)
+        internal BlockParamsVariables(TemplateContext templateContext, string[] variables)
         {
-            var item = Pool.Get();
-            item._variables = variables;
-            return item;
+            _indexes = GetIndexes(templateContext, variables);
         }
         
-        private BlockParamsValues()
+        public ChainSegment this[in int index]
         {
-        }
-        
-        public object this[int index]
-        {
-            set
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
             {
-                var variable = GetVariable(index);
-                if(ReferenceEquals(variable, null)) return;
-                if (_values.TryGetValue(variable, out var @ref))
-                {
-                    @ref.SetValue(value);
-                }
-
-                if (value is Ref refValue)
-                {
-                    _values.Add(variable, refValue);
-                    return;
-                }
-                
-                _values.Add(variable, value.AsRef());
+                if(_indexes.Length == 0 || index < 0 || index >= _indexes.Length) return null;
+                return _indexes[index];
             }
         }
         
-        void IValueProvider.Attach(BindingContext bindingContext)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ChainSegment[] GetIndexes(TemplateContext templateContext, string[] variables)
         {
-            _values = bindingContext.BlockParamsObject;
-            bindingContext.BlockParams = this;
-        }
+            if (templateContext == null || variables == null || variables.Length == 0)
+            {
+                return ArrayEx.Empty<ChainSegment>();
+            }
+            
+            var vars = new ChainSegment[variables.Length];
+            for (int index = 0; index < vars.Length; index++)
+            {
+                vars[index] = ChainSegment.Create(templateContext, variables[index]);
+            }
 
-        public void Dispose()
-        {
-            if(ReferenceEquals(this, Empty)) return;
-            Pool.Return(this);
+            return vars;
         }
+    }
+    
+    public readonly ref struct BlockParamsValues
+    {
+        private readonly Dictionary<ChainSegment, object> _values;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ChainSegment GetVariable(int index)
+        public BlockParamsValues(BindingContext context)
         {
-            if(_variables == null || _variables.Length == 0) return null;
-            if(index >= _variables.Length || index < 0) return null;
-            return _variables[index];
+            _values = context?.BlockParams;
         }
-
-        private class Policy : IInternalObjectPoolPolicy<BlockParamsValues>
+        
+        public object this[in ChainSegment index]
         {
-            public BlockParamsValues Create() => new BlockParamsValues();
-
-            public bool Return(BlockParamsValues item)
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
             {
-                item._values = null;
-                item._variables = null;
-                
-                return true;
+                if(_values == null || ReferenceEquals(index, null)) return;
+                _values[index] = value;
             }
         }
     }

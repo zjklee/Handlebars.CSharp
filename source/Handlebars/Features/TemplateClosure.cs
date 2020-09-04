@@ -16,7 +16,7 @@ namespace HandlebarsDotNet.Features
         /// </summary>
         public object[] Store { get; private set; }
 
-        internal int CurrentIndex => _inner?.Count ?? -1;
+        public int CurrentIndex => _inner?.Count ?? -1;
         
         internal object this[int key]
         {

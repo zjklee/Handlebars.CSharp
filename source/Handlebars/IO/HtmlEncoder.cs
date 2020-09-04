@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace HandlebarsDotNet
 {
@@ -18,25 +19,29 @@ namespace HandlebarsDotNet
             // Detect if we need to allocate a stringbuilder and new string
             for (var i = 0; i < text.Length; i++)
             {
-                switch (text[i])
+                if (RequireEncoding(text[i]))
                 {
-                    case '"':
-                    case '&':
-                    case '<':
-                    case '>':
-                        return ReallyEncode(text, i);
-                    default:
-                        if (text[i] > 159)
-                        {
-                            return ReallyEncode(text, i);
-                        }
-                        else
-
-                            break;
+                    return ReallyEncode(text, i);
                 }
             }
 
             return text;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool RequireEncoding(char c)
+        {
+            switch (c)
+            {
+                case '"':
+                case '&':
+                case '<':
+                case '>':
+                    return true;
+                
+                default:
+                    return c > 159;
+            }
         }
 
         private static string ReallyEncode(string text, int i)

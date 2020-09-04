@@ -9,8 +9,8 @@ namespace HandlebarsDotNet
         
         public static StringBuilderPool Shared => Lazy.Value;
 
-        public StringBuilderPool(int initialCapacity = 16) 
-            : base(new StringBuilderPooledObjectPolicy{ InitialCapacity = initialCapacity })
+        public StringBuilderPool() 
+            : base(new StringBuilderPooledObjectPolicy())
         {
         }
         
