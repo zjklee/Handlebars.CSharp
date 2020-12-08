@@ -14,6 +14,18 @@ namespace HandlebarsDotNet.StringUtils
         private readonly int _start;
         public readonly int Length;
 
+        public static bool EqualsIgnoreCase(Substring a, Substring b)
+        {
+            if (a.Length != b.Length) return false;
+
+            for (int index = 0; index < a.Length; index++)
+            {
+                if (!char.ToLowerInvariant(a[index]).Equals(char.ToLowerInvariant(b[index]))) return false;
+            }
+
+            return true;
+        }
+        
         public static IReadOnlyList<Substring> Split(Substring str, char separator, StringSplitOptions options = StringSplitOptions.None)
         {
             var result = new List<Substring>();

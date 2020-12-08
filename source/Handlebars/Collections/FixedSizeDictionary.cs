@@ -355,7 +355,7 @@ namespace HandlebarsDotNet.Collections
                 var idx = _indexes[index];
                 if (idx.Version != _version || !idx.IsNotEmpty)
                 {
-                    destination._indexes[index] = new EntryIndex<TKey>(idx.Index, destination._version);
+                    //destination._indexes[index] = new EntryIndex<TKey>(idx.Index, destination._version);
                     break;
                 }
                 
@@ -367,6 +367,16 @@ namespace HandlebarsDotNet.Collections
             }
             
             destination._count = _count;
+        }
+
+        public void AdjustIndexes(EntryIndex<TKey>[] source, FixedSizeDictionary<TKey, TValue, TComparer> destination, EntryIndex<TKey>[] target)
+        {
+            if(source.Length != target.Length) Throw.CapacityShouldBeEqual(nameof(target));
+            
+            for (var i = 0; i < source.Length; i++)
+            {
+                target[i] = new EntryIndex<TKey>(source[i].Index, destination._version);
+            }
         }
 
         /// <summary>

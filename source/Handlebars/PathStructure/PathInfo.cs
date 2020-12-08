@@ -30,18 +30,15 @@ namespace HandlebarsDotNet.PathStructure
         internal readonly bool IsInversion;
         internal readonly bool IsBlockHelper;
         internal readonly bool IsBlockClose;
-        internal readonly bool HasContextChange;
-        internal readonly int ContextChangeDepth;
-        
+
         private readonly int _hashCode;
         private readonly int _trimmedHashCode;
-        
-        internal PathInfo(
+
+        private PathInfo(
             PathType pathType,
             string path,
             bool isValidHelperLiteral,
-            int contextChangeCount,
-            IReadOnlyList<PathSegment> segments)
+            PathSegment[] segments)
         {
             IsValidHelperLiteral = isValidHelperLiteral;
             HasValue = pathType != PathType.Empty;
@@ -55,38 +52,46 @@ namespace HandlebarsDotNet.PathStructure
             IsInversion = pathType == PathType.Inversion;
             IsBlockHelper = pathType == PathType.BlockHelper;
             IsBlockClose = pathType == PathType.BlockClose;
-            
-            ContextChangeDepth = contextChangeCount;
-            HasContextChange = ContextChangeDepth > 0;
-            
-            var plainSegments = segments.Where(o => !o.IsContextChange && o.IsNotEmpty).ToArray();
+
+            var plainSegments = segments.Where(o => !o.IsParent && o.IsNotEmpty).ToArray();
             IsThis = string.Equals(path, "this", StringComparison.OrdinalIgnoreCase) || path == "." || plainSegments.Any(o => o.IsThis);
             IsPureThis = string.Equals(path, "this", StringComparison.OrdinalIgnoreCase) || path == ".";
+            Segments = segments;
+            
+            // var segment = plainSegments.SingleOrDefault(o => !o.IsThis);
+            // if (!segment.IsNotEmpty)
+            // {
+            //     IsPureThis = true;
+            //     TrimmedPath = ".";
+            //     PathChain = ArrayEx.Empty<ChainSegment>();
+            //     return;
+            // }
 
-            var segment = plainSegments.FirstOrDefault(o => !o.IsThis);
-            if (!segment.IsNotEmpty)
+            using var container = StringBuilderPool.Shared.Use();
+            var builder = container.Value;
+            
+            var segmentsLastIndex = Segments.Length - 1;
+            for (var segmentIndex = 0; segmentIndex <= segmentsLastIndex; segmentIndex++)
             {
-                IsPureThis = true;
-                TrimmedPath = ".";
-                PathChain = ArrayEx.Empty<ChainSegment>();
-                return;
-            }
-
-            PathChain = segment.PathChain;
-            var lastIndex = segment.PathChain.Length - 1;
-            using (var container = StringBuilderPool.Shared.Use())
-            {
-                for (int index = 0; index < PathChain.Length; index++)
+                var segment = Segments[segmentIndex];
+                var pathChainLastIndex = segment.PathChain.Length - 1;
+                var pathChain = segment.PathChain;
+                for (var pathChainIndex = 0; pathChainIndex <= pathChainLastIndex; pathChainIndex++)
                 {
-                    container.Value.Append(PathChain[index].TrimmedValue);
-                    if (index != lastIndex)
+                    builder.Append(pathChain[pathChainIndex].TrimmedValue);
+                    if (pathChainIndex != pathChainLastIndex)
                     {
-                        container.Value.Append('.');
+                        builder.Append('.');
                     }
                 }
 
-                TrimmedPath = container.Value.ToString();
+                if (segmentIndex != segmentsLastIndex)
+                {
+                    builder.Append('/');
+                }
             }
+            
+            TrimmedPath = builder.ToString();
 
             _trimmedHashCode = TrimmedPath.GetHashCode();
         }
@@ -95,7 +100,7 @@ namespace HandlebarsDotNet.PathStructure
         /// Indicates whether <see cref="PathInfo"/> is part of <c>@</c> variable
         /// </summary>
         public readonly bool IsVariable;
-        public readonly ChainSegment[] PathChain;
+        public readonly PathSegment[] Segments;
         public readonly string Path;
         public readonly string TrimmedPath;
 
@@ -132,7 +137,7 @@ namespace HandlebarsDotNet.PathStructure
         public static PathInfo Parse(string path)
         {
             if (path == "null")
-                return new PathInfo(PathType.Empty, path, false, 0, null);
+                return new PathInfo(PathType.Empty, path, false, null);
 
             var originalPath = path;
             var pathSubstring = new Substring(path);
@@ -147,8 +152,7 @@ namespace HandlebarsDotNet.PathStructure
                 isValidHelperLiteral = isBlockHelper || isInversion;
                 pathSubstring = new Substring(pathSubstring, 1);
             }
-
-            var contextChangeCount = 0;
+            
             var segments = new List<PathSegment>();
             var pathParts = Substring.Split(pathSubstring, '/');
             if (pathParts.Count > 1) isValidHelperLiteral = false;
@@ -157,7 +161,6 @@ namespace HandlebarsDotNet.PathStructure
                 var segment = pathParts[index];
                 if (segment.Length == 2 && segment[0] == '.' && segment[1] == '.')
                 {
-                    contextChangeCount++;
                     isValidHelperLiteral = false;
                     segments.Add(new PathSegment(segment, ArrayEx.Empty<ChainSegment>()));
                     continue;
@@ -176,10 +179,10 @@ namespace HandlebarsDotNet.PathStructure
                 segments.Add(new PathSegment(segment, chainSegments));
             }
 
-            return new PathInfo(pathType, originalPath, isValidHelperLiteral, contextChangeCount, segments);
+            return new PathInfo(pathType, originalPath, isValidHelperLiteral, segments.ToArray());
         }
         
-        private static IReadOnlyList<ChainSegment> GetPathChain(Substring segmentString)
+        private static ChainSegment[] GetPathChain(Substring segmentString)
         {
             var insideEscapeBlock = false;
             var pathChainParts = Substring.Split(segmentString, '.', StringSplitOptions.RemoveEmptyEntries);
@@ -188,7 +191,7 @@ namespace HandlebarsDotNet.PathStructure
             var chainSegments = new List<ChainSegment>();
 
             var count = pathChainParts.Count;
-            for (int index = 0; index < count; index++)
+            for (var index = 0; index < count; index++)
             {
                 var next = pathChainParts[index];
                 if (insideEscapeBlock)
@@ -215,7 +218,7 @@ namespace HandlebarsDotNet.PathStructure
                 chainSegments.Add(ChainSegment.Create(next.ToString()));
             }
             
-            return chainSegments;
+            return chainSegments.ToArray();
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

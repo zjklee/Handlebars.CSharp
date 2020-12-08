@@ -19,7 +19,7 @@ namespace HandlebarsDotNet.PathStructure
                 if (ReferenceEquals(x, null)) return false;
                 if (ReferenceEquals(y, null)) return false;
                 
-                return (!_countParts || x.PathChain.Length == y.PathChain.Length) && string.Equals(x.TrimmedPath, y.TrimmedPath);
+                return (!_countParts || x.Segments.Length == y.Segments.Length) && string.Equals(x.TrimmedPath, y.TrimmedPath);
             }
 
             public int GetHashCode(PathInfo obj)

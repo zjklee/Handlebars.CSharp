@@ -9,27 +9,53 @@ namespace HandlebarsDotNet.PathStructure
         {
             if (!pathInfo.HasValue) return null;
             
-            if (pathInfo.HasContextChange)
-            {
-                context = ChangeContext(pathInfo, context);
-                if (ReferenceEquals(context, null)) return string.Empty;
-            }
+            // if (pathInfo.HasContextChange)
+            // {
+            //     context = ChangeContext(pathInfo, context);
+            //     if (ReferenceEquals(context, null)) return string.Empty;
+            // }
 
             if (pathInfo.IsPureThis) return context.Value;
             
-            var instance = context.Value;
-            var pathChain = pathInfo.PathChain;
-            
+            var instance = context!.Value;
             var hashParameters = instance as HashParameterDictionary;
 
-            for (var index = 0; index < pathChain.Length; index++)
+            var pathInfoSegments = pathInfo.Segments;
+            for (var segmentIndex = 0; segmentIndex < pathInfoSegments.Length; segmentIndex++)
             {
-                var isVariable = index == 0 && pathInfo.IsVariable;
-                if (!ProcessSegment(context, pathInfo, isVariable, pathChain[index], hashParameters, ref instance))
+                var pathInfoSegment = pathInfoSegments[segmentIndex];
+                if(pathInfoSegment.IsThis) continue;
+                if (pathInfoSegment.IsParent)
                 {
-                    return instance;
+                    context = context!.ParentContext;
+                    if (context != null) continue;
+
+                    if (!pathInfo.IsVariable) Throw.PathReferenceParentOfRoot();
+                    else return UndefinedBindingResult.Create(pathInfo);
+
+                    continue;
+                }
+
+                var pathChain = pathInfoSegment.PathChain;
+                
+                for (var index = 0; index < pathChain.Length; index++)
+                {
+                    var isVariable = index == 0 && pathInfo.IsVariable;
+                    if (!ProcessSegment(context, pathInfo, isVariable, pathChain[index], hashParameters, ref instance))
+                    {
+                        return instance;
+                    }
                 }
             }
+
+            // for (var index = 0; index < pathChain.Length; index++)
+            // {
+            //     var isVariable = index == 0 && pathInfo.IsVariable;
+            //     if (!ProcessSegment(context, pathInfo, isVariable, pathChain[index], hashParameters, ref instance))
+            //     {
+            //         return instance;
+            //     }
+            // }
 
             return instance;
         }
@@ -60,7 +86,7 @@ namespace HandlebarsDotNet.PathStructure
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static BindingContext ChangeContext(PathInfo pathInfo, BindingContext context)
         {
-            for (var i = 0; i < pathInfo.ContextChangeDepth; i++)
+            for (var i = 0; i < pathInfo.Segments.Length; i++)
             {
                 context = context!.ParentContext;
                 if (context == null)
