@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using HandlebarsDotNet.PathStructure;
+using HandlebarsDotNet.ValueProviders;
 using NSubstitute;
 using Xunit;
 
@@ -27,6 +29,25 @@ namespace HandlebarsDotNet.Test
             };
             var result = template(data);
             Assert.Equal("Hello,\n- Erik\n- Helen", result);
+        }
+        
+        [Fact]
+        public void BasicIteratorWithIndexOffset()
+        {
+            var source = "Hello,{{#each people indexOffset=1 as |person personId|}}\n- {{person.name}} {{personId}}={{@index}}{{/each}}";
+            var handlebars = Handlebars.Create();
+            handlebars.Configuration.Compatibility.SupportIndexOffset = true;
+            
+            var template = handlebars.Compile(source);
+            var data = new {
+                people = new [] {
+                    new { name = "Erik" },
+                    new { name = "Helen" }
+                }
+            };
+            
+            var result = template(data);
+            Assert.Equal("Hello,\n- Erik 1=1\n- Helen 2=2", result);
         }
 
         [Fact]

@@ -13,10 +13,10 @@ namespace HandlebarsDotNet.Iterators
             in EncodedTextWriter writer,
             BindingContext context,
             ChainSegment[] blockParamsVariables,
+            in Arguments arguments,
             object input,
             TemplateDelegate template,
-            TemplateDelegate ifEmpty
-        )
+            TemplateDelegate ifEmpty)
         {
             using var innerContext = context.CreateFrame();
             var iterator = new ObjectIteratorValues(innerContext);
@@ -28,6 +28,7 @@ namespace HandlebarsDotNet.Iterators
             var target = (TDictionary) input;
             var properties = target.Keys;
             var enumerator = properties.GetEnumerator();
+            var indexOffset = IIterator.Helpers.GetIndexOffset(context, arguments);
 
             iterator.First = BoxedValues.True;
             iterator.Last = BoxedValues.False;
@@ -42,7 +43,7 @@ namespace HandlebarsDotNet.Iterators
                 if (index == 1) iterator.First = BoxedValues.False;
                 if (index == lastIndex) iterator.Last = BoxedValues.True;
                 
-                iterator.Index = BoxedValues.Int(index);
+                iterator.Index = BoxedValues.Int(index + indexOffset);
                 
                 var resolvedValue = target[iteratorKey!];
                 

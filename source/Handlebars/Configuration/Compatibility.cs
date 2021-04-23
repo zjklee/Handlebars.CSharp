@@ -16,5 +16,10 @@
         /// <para>Such naming is not supported in Handlebarsjs and would break compatibility.</para>
         /// </summary>
         public bool RelaxedHelperNaming { get; set; } = false;
+        
+        /// <summary>
+        /// If <see langword="true"/> enables support for <c>indexOffset</c> hash argument in #each iterators. Not supported in Handlebarsjs.
+        /// </summary>
+        public bool SupportIndexOffset { get; set; } = false;
     }
 }

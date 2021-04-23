@@ -8,13 +8,13 @@ namespace HandlebarsDotNet.Iterators
     public sealed class ArrayIterator<T> : IIterator
     {
         public void Iterate(
-            in EncodedTextWriter writer, 
+            in EncodedTextWriter writer,
             BindingContext context,
             ChainSegment[] blockParamsVariables,
+            in Arguments arguments,
             object input,
             TemplateDelegate template,
-            TemplateDelegate ifEmpty
-        )
+            TemplateDelegate ifEmpty)
         {
             using var innerContext = context.CreateFrame();
             var iterator = new IteratorValues(innerContext);
@@ -25,6 +25,7 @@ namespace HandlebarsDotNet.Iterators
             
             var target = (T[]) input;
             var count = target.Length;
+            var indexOffset = IIterator.Helpers.GetIndexOffset(context, arguments);
 
             iterator.First = BoxedValues.True;
             iterator.Last = BoxedValues.False;
@@ -34,7 +35,7 @@ namespace HandlebarsDotNet.Iterators
             for (; index < count; index++)
             {
                 var value = (object) target[index];
-                var objectIndex = BoxedValues.Int(index);
+                var objectIndex = BoxedValues.Int(index + indexOffset);
                 
                 if (index == 1) iterator.First = BoxedValues.False;
                 if (index == lastIndex) iterator.Last = BoxedValues.True;

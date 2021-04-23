@@ -16,13 +16,13 @@ namespace HandlebarsDotNet.Iterators
         }
 
         public void Iterate(
-            in EncodedTextWriter writer, 
+            in EncodedTextWriter writer,
             BindingContext context,
             ChainSegment[] blockParamsVariables,
+            in Arguments arguments,
             object input,
             TemplateDelegate template,
-            TemplateDelegate ifEmpty
-        )
+            TemplateDelegate ifEmpty)
         {
             using var innerContext = context.CreateFrame();
             var iterator = new ObjectIteratorValues(innerContext);
@@ -37,6 +37,7 @@ namespace HandlebarsDotNet.Iterators
             iterator.Last = BoxedValues.False;
 
             var index = 0;
+            var indexOffset = IIterator.Helpers.GetIndexOffset(context, arguments);
             var lastIndex = properties.Length - 1;
             var accessor = new ObjectAccessor(input, _descriptor);
             for(; index < properties.Length; index++)
@@ -47,7 +48,7 @@ namespace HandlebarsDotNet.Iterators
                 if (index == 1) iterator.First = BoxedValues.False;
                 if (index == lastIndex) iterator.Last = BoxedValues.True;
                 
-                iterator.Index = BoxedValues.Int(index);
+                iterator.Index = BoxedValues.Int(index + indexOffset);
                 
                 var resolvedValue = accessor[iteratorKey];
                 

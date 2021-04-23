@@ -249,6 +249,35 @@ public void HelperWithDotSeparatedName()
 }
 ```
 
+#### `SupportIndexOffset`
+If `true` enables support for `indexOffset` hash argument in `#each` iterators.
+`indexOffset` modifier is not supported in Handlebarsjs and would break compatibility.
+
+##### Areas
+- `Runtime`
+
+##### Example
+```c#
+[Fact]
+public void BasicIteratorWithIndexOffset()
+{
+    var source = "Hello,{{#each people indexOffset=1 as |person personId|}}\n- {{person.name}} {{personId}}={{@index}}{{/each}}";
+    var handlebars = Handlebars.Create();
+    handlebars.Configuration.Compatibility.SupportIndexOffset = true;
+    
+    var template = handlebars.Compile(source);
+    var data = new {
+        people = new [] {
+            new { name = "Erik" },
+            new { name = "Helen" }
+        }
+    };
+    
+    var result = template(data);
+    Assert.Equal("Hello,\n- Erik 1=1\n- Helen 2=2", result);
+}
+```
+
 ## Performance
 
 ### Compilation

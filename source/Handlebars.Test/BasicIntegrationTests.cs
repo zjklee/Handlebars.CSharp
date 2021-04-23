@@ -21,6 +21,7 @@ namespace HandlebarsDotNet.Test
         {
             Handlebars.Create(),
             Handlebars.Create(new HandlebarsConfiguration().Configure(o => o.Compatibility.RelaxedHelperNaming = true)),
+            Handlebars.Create(new HandlebarsConfiguration().Configure(o => o.Compatibility.SupportIndexOffset = true)),
             Handlebars.Create(new HandlebarsConfiguration().UseWarmUp(types =>
             {
                 types.Add(typeof(Dictionary<string, object>));

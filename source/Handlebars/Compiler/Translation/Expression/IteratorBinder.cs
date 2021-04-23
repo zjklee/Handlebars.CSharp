@@ -21,8 +21,8 @@ namespace HandlebarsDotNet.Compiler
             var context = CompilationContext.Args.BindingContext;
             var writer = CompilationContext.Args.EncodedWriter;
 
-            var template = FunctionBuilder.Compile(new[] {iex.Template}, new CompilationContext(CompilationContext));
-            var ifEmpty = FunctionBuilder.Compile(new[] {iex.IfEmpty}, new CompilationContext(CompilationContext));
+            var template = FunctionBuilder.Compile(new[] {iex.Template}, CompilationContext);
+            var ifEmpty = FunctionBuilder.Compile(new[] {iex.IfEmpty}, CompilationContext);
 
             if (iex.Sequence is PathExpression pathExpression)
             {
@@ -31,11 +31,12 @@ namespace HandlebarsDotNet.Compiler
             
             var compiledSequence = Arg<object>(FunctionBuilder.Reduce(iex.Sequence, CompilationContext));
             var blockParamsValues = CreateBlockParams();
+            var arguments = FunctionBinderHelpers.CreateArguments(iex.Arguments, CompilationContext);
             
             return iex.HelperName[0] switch
             {
-                '#' => Call(() => Iterator.Iterate(context, writer, blockParamsValues, compiledSequence, template, ifEmpty)),
-                '^' => Call(() => Iterator.Iterate(context, writer, blockParamsValues, compiledSequence, ifEmpty, template)),
+                '#' => Call(() => Iterator.Iterate(context, writer, blockParamsValues, arguments, compiledSequence, template, ifEmpty)),
+                '^' => Call(() => Iterator.Iterate(context, writer, blockParamsValues, arguments, compiledSequence, ifEmpty, template)),
                 _ => throw new HandlebarsCompilerException($"Tried to convert {iex.HelperName} expression to iterator block", iex.Context) 
             };
 
@@ -56,8 +57,9 @@ namespace HandlebarsDotNet.Compiler
     {
         public static void Iterate(
             BindingContext context,
-            EncodedTextWriter writer,
+            in EncodedTextWriter writer,
             ChainSegment[] blockParamsVariables,
+            in Arguments arguments,
             object target,
             TemplateDelegate template,
             TemplateDelegate ifEmpty)
@@ -76,7 +78,7 @@ namespace HandlebarsDotNet.Compiler
 
             if (descriptor.Iterator == null) throw new HandlebarsRuntimeException($"Type {descriptor.DescribedType} does not support iteration");
             
-            descriptor.Iterator.Iterate(writer, context, blockParamsVariables, target, template, ifEmpty);
+            descriptor.Iterator.Iterate(writer, context, blockParamsVariables, arguments, target, template, ifEmpty);
         }
     }
 }

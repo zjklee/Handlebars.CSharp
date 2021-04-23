@@ -85,11 +85,19 @@ namespace HandlebarsDotNet
 
         private class Iterator: IIterator
         {
-            public void Iterate(in EncodedTextWriter writer, BindingContext context, ChainSegment[] blockParamsVariables, object input, TemplateDelegate template, TemplateDelegate ifEmpty)
+            public void Iterate(
+                in EncodedTextWriter writer, 
+                BindingContext context,
+                ChainSegment[] blockParamsVariables,
+                in Arguments arguments, 
+                object input, 
+                TemplateDelegate template, 
+                TemplateDelegate ifEmpty
+            )
             {
                 var vm = (LayoutViewModel) input;
                 var iterator = vm._valueDescriptor.Iterator;
-                iterator?.Iterate(writer, context, blockParamsVariables, vm._value, template, ifEmpty);
+                iterator?.Iterate(writer, context, blockParamsVariables, arguments, vm._value, template, ifEmpty);
             }
         }
     }

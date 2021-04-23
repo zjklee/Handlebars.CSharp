@@ -50,7 +50,7 @@ namespace HandlebarsDotNet.Helpers.BlockHelpers
                 }
                 
                 case IEnumerable enumerable:
-                    Iterator.Iterate(context, writer, BlockParamsVariables, enumerable, body, inversion);
+                    Iterator.Iterate(context, writer, BlockParamsVariables, new Arguments(), enumerable, body, inversion);
                     break;
                 
                 default:

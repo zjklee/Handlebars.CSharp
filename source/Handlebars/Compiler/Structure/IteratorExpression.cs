@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
@@ -6,9 +7,15 @@ namespace HandlebarsDotNet.Compiler
 {
     internal class IteratorExpression : BlockHelperExpression
     {
-        public IteratorExpression(string helperName, Expression sequence, BlockParamsExpression blockParams,
-            Expression template, Expression ifEmpty)
-            :base(helperName, Enumerable.Empty<Expression>(), blockParams, template, ifEmpty, false)
+        public IteratorExpression(
+            string helperName, 
+            Expression sequence, 
+            BlockParamsExpression blockParams,
+            IEnumerable<Expression> arguments,
+            Expression template, 
+            Expression ifEmpty
+        )
+            :base(helperName, arguments, blockParams, template, ifEmpty, false)
         {
             Sequence = sequence;
             Template = template;

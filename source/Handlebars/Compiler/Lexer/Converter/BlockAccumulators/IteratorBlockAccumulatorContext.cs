@@ -28,7 +28,14 @@ namespace HandlebarsDotNet.Compiler
         {
             if (IsElseBlock(item))
             {
-                _accumulatedExpression = HandlebarsExpression.Iterator(BlockName, _startingNode.Arguments.Single(o => o.NodeType != (ExpressionType)HandlebarsExpressionType.BlockParamsExpression), _startingNode.Arguments.OfType<BlockParamsExpression>().SingleOrDefault() ?? BlockParamsExpression.Empty(), Expression.Block(_body));
+                _accumulatedExpression = HandlebarsExpression.Iterator(
+                    BlockName, 
+                    _startingNode.Arguments.Single(o => o.NodeType != (ExpressionType)HandlebarsExpressionType.BlockParamsExpression && o.NodeType != (ExpressionType)HandlebarsExpressionType.HashParametersExpression), 
+                    _startingNode.Arguments.OfType<BlockParamsExpression>().SingleOrDefault() ?? BlockParamsExpression.Empty(), 
+                    _startingNode.Arguments.OfType<HashParametersExpression>(),
+                    Expression.Block(_body)
+                );
+                
                 _body = new List<Expression>();
             }
             else
@@ -45,11 +52,17 @@ namespace HandlebarsDotNet.Compiler
             var bodyStatements = _body.Count != 0 ? _body : new List<Expression>{ Expression.Empty() };
             if (_accumulatedExpression == null)
             {
-                _accumulatedExpression = HandlebarsExpression.Iterator(BlockName, _startingNode.Arguments.Single(o => o.NodeType != (ExpressionType)HandlebarsExpressionType.BlockParamsExpression), _startingNode.Arguments.OfType<BlockParamsExpression>().SingleOrDefault() ?? BlockParamsExpression.Empty(), Expression.Block(bodyStatements));
+                _accumulatedExpression = HandlebarsExpression.Iterator(
+                    BlockName, 
+                    _startingNode.Arguments.Single(o => o.NodeType != (ExpressionType)HandlebarsExpressionType.BlockParamsExpression && o.NodeType != (ExpressionType)HandlebarsExpressionType.HashParametersExpression),
+                    _startingNode.Arguments.OfType<BlockParamsExpression>().SingleOrDefault() ?? BlockParamsExpression.Empty(), 
+                    _startingNode.Arguments.OfType<HashParametersExpression>(),
+                    Expression.Block(bodyStatements)
+                );
             }
             else
             {
-                _accumulatedExpression = HandlebarsExpression.Iterator(BlockName, ((IteratorExpression)_accumulatedExpression).Sequence, ((IteratorExpression)_accumulatedExpression).BlockParams, ((IteratorExpression)_accumulatedExpression).Template, Expression.Block(bodyStatements));
+                _accumulatedExpression = HandlebarsExpression.Iterator(BlockName, ((IteratorExpression)_accumulatedExpression).Sequence, ((IteratorExpression)_accumulatedExpression).BlockParams, ((IteratorExpression)_accumulatedExpression).Arguments, ((IteratorExpression)_accumulatedExpression).Template, Expression.Block(bodyStatements));
             }
             
             return true;
